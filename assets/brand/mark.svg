@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20.716 29.7" width="20.716" height="29.7">
+  <title>BRUT</title>
+  <!--
+    A raw slab, sheared across the top, with one deep notch bitten out of the
+    right edge. No interior detail, so the silhouette survives at 20px next to
+    the wordmark. Same 20.716 x 29.7 box as the mark it replaces.
+  -->
+  <path fill="#070707" d="M0 5.5 20.716 0v13h-7.3v4.5h7.3v12.2H0Z"/>
+</svg>

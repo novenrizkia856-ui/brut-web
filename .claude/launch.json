@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "brut-web",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5250", "--bind", "127.0.0.1", "--directory", "D:/project-work/brut-web"],
+      "port": 5250
+    }
+  ]
+}

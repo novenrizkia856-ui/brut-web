@@ -1,0 +1,12 @@
+{
+  "name": "brut-web",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "docs": "node tools/build-docs.mjs",
+    "audit": "node tools/check-copy.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "npm run docs && npm run audit && npm test"
+  }
+}

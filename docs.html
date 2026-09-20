@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BRUT Docs | Onchain GPU Compute</title>
+<meta name="description" content="The concept, mechanics, state model and trust model behind the BRUT GPU compute marketplace.">
+<meta name="robots" content="index, follow">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="BRUT">
+<meta property="og:title" content="BRUT Docs | Onchain GPU Compute">
+<meta property="og:description" content="The concept, mechanics, state model and trust model behind the BRUT GPU compute marketplace.">
+<link rel="icon" href="assets/brand/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/brut.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/docs.css">
+</head>
+<body>
+<a class="skip-link" href="#doc-main">Skip to content</a>
+
+<div class="page">
+  <header class="masthead">
+    <div class="container masthead__inner">
+      <a class="brand" href="index.html" aria-label="BRUT home">
+        <img src="assets/brand/mark.svg" width="15" height="21.5" alt="">
+        <span>BRUT</span>
+      </a>
+      <nav class="pill-nav" aria-label="Primary">
+        <a href="index.html">Overview</a>
+        <a href="app.html">App</a>
+        <a href="docs.html" aria-current="page">Docs</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="container docs-shell">
+    <details class="docs-side" id="docs-toc" open>
+      <summary class="docs-side__label">Contents</summary>
+      <ol class="docs-side__list">
+            <li><a href="#introduction" data-doc-link>BRUT</a></li>
+            <li><a href="#overview" data-doc-link>Overview</a></li>
+            <li><a href="#problem-and-goal" data-doc-link>Problem and Goal</a></li>
+            <li><a href="#system-model" data-doc-link>System Model</a></li>
+            <li><a href="#actors" data-doc-link>Actors</a></li>
+            <li><a href="#job-lifecycle" data-doc-link>Job Lifecycle</a></li>
+            <li><a href="#provider-marketplace" data-doc-link>Provider Marketplace</a></li>
+            <li><a href="#escrow-and-payments" data-doc-link>Escrow and Payments</a></li>
+            <li><a href="#verification" data-doc-link>Verification</a></li>
+            <li><a href="#reputation-and-slashing" data-doc-link>Reputation and Slashing</a></li>
+            <li><a href="#job-states" data-doc-link>Job States</a></li>
+            <li><a href="#core-data-model" data-doc-link>Core Data Model</a></li>
+            <li><a href="#data-sources" data-doc-link>Data Sources</a></li>
+            <li><a href="#api-model" data-doc-link>API Model</a></li>
+            <li><a href="#two-day-mvp-scope" data-doc-link>Two-Day MVP Scope</a></li>
+            <li><a href="#trust-and-failure-model" data-doc-link>Trust and Failure Model</a></li>
+            <li><a href="#what-brut-is-not" data-doc-link>What BRUT Is Not</a></li>
+            <li><a href="#example-job" data-doc-link>Example Job</a></li>
+            <li><a href="#product-positioning" data-doc-link>Product Positioning</a></li>
+            <li><a href="#glossary" data-doc-link>Glossary</a></li>
+      </ol>
+    </details>
+
+    <main class="docs-main" id="doc-main">
+      <div class="docs-intro">
+        <p class="label">Documentation</p>
+        <h1>Idle GPUs. Real jobs. Paid onchain.</h1>
+        <p class="lede">How BRUT coordinates a compute job between a buyer and a provider it has never met.</p>
+      </div>
+
+      <section class="doc" id="introduction" aria-labelledby="introduction-title">
+            <h2 class="doc__title" id="introduction-title">BRUT</h2>
+            <p>BRUT is a permissionless onchain marketplace for renting GPU compute.</p>
+            <p>GPU providers make idle GPU capacity available to buyers. Buyers create compute jobs, lock payment in escrow, match with a provider, receive execution results, and settle the job through onchain rules.</p>
+            <p>The core idea is simple:</p>
+            <blockquote class="doc-quote">Idle GPUs. Real jobs. Paid onchain.</blockquote>
+            <p>BRUT does not try to become a cloud provider itself. It coordinates supply, demand, escrow, verification, reputation, and settlement between independent compute buyers and GPU providers.</p>
+            <h2>Core Product Loop</h2>
+            <ol class="doc-list doc-list--num"><li>A provider registers available GPU capacity.</li><li>A buyer creates a compute job.</li><li>The buyer funds escrow before execution starts.</li><li>A provider is selected or matched.</li><li>The provider runs the job offchain.</li><li>Job progress and verification inputs are recorded.</li><li>Completion is verified.</li><li>Payment is released according to the job rules.</li><li>Reputation is updated from the result.</li></ol>
+            <h2>Documentation Scope</h2>
+            <p>These docs describe the technical concepts, system mechanics, state model, trust model, and MVP scope of BRUT.</p>
+            <p>They intentionally avoid implementation-specific Solidity architecture so the product can be built quickly and the contract design can remain flexible during development.</p>
+          </section>
+
+          <section class="doc" id="overview" aria-labelledby="overview-title">
+            <h2 class="doc__title" id="overview-title">Overview</h2>
+            <p>BRUT is an onchain GPU compute marketplace that connects people who need compute with people who own idle GPUs.</p>
+            <p>The marketplace itself does not own the hardware. The actual compute runs offchain on provider-controlled machines. BRUT coordinates the economic agreement around that compute onchain.</p>
+            <p>The system combines five core functions:</p>
+            <div class="doc-table"><table><thead><tr><th>Function</th><th>Purpose</th></tr></thead><tbody><tr><td>Marketplace</td><td>Expose GPU supply and compute demand</td></tr><tr><td>Matching</td><td>Connect a job with a suitable provider</td></tr><tr><td>Escrow</td><td>Lock buyer funds before execution</td></tr><tr><td>Verification</td><td>Determine whether the agreed job completed</td></tr><tr><td>Reputation</td><td>Record provider reliability over time</td></tr></tbody></table></div>
+            <p>The blockchain is used for the parts that benefit from deterministic rules and transparent settlement. GPU execution remains offchain because training, inference, and rendering cannot practically run inside a normal smart contract.</p>
+            <h2>Primary Goal</h2>
+            <p>Create a simple market where a buyer can request GPU compute from an unknown provider without relying only on informal trust.</p>
+            <p>The buyer should know what was requested, what price was agreed, what funds are locked, what the current job state is, and what evidence was used before payment is released.</p>
+            <p>The provider should know that payment was funded before work begins and that the settlement conditions are known in advance.</p>
+          </section>
+
+          <section class="doc" id="problem-and-goal" aria-labelledby="problem-and-goal-title">
+            <h2 class="doc__title" id="problem-and-goal-title">Problem and Goal</h2>
+            <h2>Problem</h2>
+            <p>GPU compute for AI and other workloads is expensive and concentrated in centralized cloud platforms, while a large amount of GPU capacity remains underused in gaming machines, mining rigs, small data centers, and enterprise clusters.</p>
+            <p>A direct rental market between strangers has several trust problems:</p>
+            <ul class="doc-list"><li>A buyer cannot easily know whether the job really ran.</li><li>A provider may not know whether the buyer will pay.</li><li>A provider can disappear while a job is running.</li><li>A buyer can claim a valid result is invalid.</li><li>Hardware claims may be inaccurate.</li><li>Pricing is fragmented across independent providers.</li><li>There is no shared reputation history.</li></ul>
+            <h2>BRUT's Goal</h2>
+            <p>BRUT introduces a common protocol for the economic relationship between buyer and provider.</p>
+            <p>It provides:</p>
+            <ul class="doc-list"><li>standardized job requirements,</li><li>provider inventory and pricing,</li><li>escrowed payment,</li><li>job status tracking,</li><li>verification inputs,</li><li>reputation,</li><li>optional provider stake,</li><li>slashing rules,</li><li>and transparent onchain settlement.</li></ul>
+            <p>The system does not claim that every offchain fact can be perfectly proven. Instead, it separates directly onchain facts from attested or provider-reported information.</p>
+          </section>
+
+          <section class="doc" id="system-model" aria-labelledby="system-model-title">
+            <h2 class="doc__title" id="system-model-title">System Model</h2>
+            <p>BRUT is a hybrid onchain/offchain system.</p>
+            <h2>Onchain Layer</h2>
+            <p>The onchain layer is responsible for economic coordination and public state.</p>
+            <p>Typical responsibilities are:</p>
+            <ul class="doc-list"><li>provider registration,</li><li>provider stake,</li><li>job identity,</li><li>buyer and provider addresses,</li><li>escrow balance,</li><li>agreed price,</li><li>job status,</li><li>payout state,</li><li>completion records,</li><li>slashing records,</li><li>reputation-related records,</li><li>and links or hashes that reference verification evidence.</li></ul>
+            <h2>Offchain Compute Layer</h2>
+            <p>The offchain layer performs the actual GPU work.</p>
+            <p>It can produce:</p>
+            <ul class="doc-list"><li>hardware information,</li><li>execution logs,</li><li>heartbeats,</li><li>runtime measurements,</li><li>output files,</li><li>output hashes,</li><li>and provider benchmarks.</li></ul>
+            <h2>Trust Boundary</h2>
+            <p>BRUT should never treat every offchain claim as equivalent to an onchain fact.</p>
+            <p>A useful separation is:</p>
+            <ul class="doc-list"><li><strong>VERIFIED ONCHAIN</strong> — directly readable from contracts.</li><li><strong>VERIFIED VIA ATTESTATION</strong> — supported by hardware attestation or cryptographic execution evidence.</li><li><strong>REPORTED / UNVERIFIED</strong> — submitted by a provider but not independently confirmed.</li></ul>
+            <p>The system should make the source of a claim visible instead of presenting all data as equally trusted.</p>
+          </section>
+
+          <section class="doc" id="actors" aria-labelledby="actors-title">
+            <h2 class="doc__title" id="actors-title">Actors</h2>
+            <h2>Buyer</h2>
+            <p>The buyer creates a compute job and funds payment.</p>
+            <p>Typical buyer actions:</p>
+            <ul class="doc-list"><li>define GPU requirements,</li><li>define workload type,</li><li>define duration or budget,</li><li>submit a container image or script reference,</li><li>select or accept a provider,</li><li>fund escrow,</li><li>monitor status,</li><li>receive the result,</li><li>and participate in verification if needed.</li></ul>
+            <h2>Provider</h2>
+            <p>The provider owns or controls GPU capacity.</p>
+            <p>Typical provider actions:</p>
+            <ul class="doc-list"><li>register GPU inventory,</li><li>publish availability,</li><li>publish price,</li><li>optionally lock stake,</li><li>accept a job,</li><li>run the workload,</li><li>submit execution evidence,</li><li>provide the result,</li><li>and receive payment after valid completion.</li></ul>
+            <h2>Marketplace Protocol</h2>
+            <p>The protocol coordinates the job relationship.</p>
+            <p>Its role is to keep a shared state for:</p>
+            <ul class="doc-list"><li>job creation,</li><li>matching,</li><li>escrow,</li><li>status,</li><li>verification result,</li><li>payout,</li><li>stake,</li><li>and reputation.</li></ul>
+            <h2>Verification Source</h2>
+            <p>A verification source is any system that contributes evidence about job execution.</p>
+            <p>Examples include:</p>
+            <ul class="doc-list"><li>onchain contract state,</li><li>hardware attestation,</li><li>output hash comparison,</li><li>job heartbeats,</li><li>runtime monitoring,</li><li>and execution logs.</li></ul>
+            <p>Not every source has the same confidence level.</p>
+          </section>
+
+          <section class="doc" id="job-lifecycle" aria-labelledby="job-lifecycle-title">
+            <h2 class="doc__title" id="job-lifecycle-title">Job Lifecycle</h2>
+            <p>A BRUT job moves through a simple sequence from demand creation to settlement.</p>
+            <h2>1. Job Creation</h2>
+            <p>The buyer defines the requested compute.</p>
+            <p>A job can include:</p>
+            <ul class="doc-list"><li>required GPU type,</li><li>GPU count,</li><li>workload type,</li><li>expected duration,</li><li>maximum budget,</li><li>container image or script reference,</li><li>geographic or latency constraints,</li><li>and verification expectations.</li></ul>
+            <h2>2. Provider Matching</h2>
+            <p>The job is matched with an available provider.</p>
+            <p>Matching can consider:</p>
+            <ul class="doc-list"><li>GPU inventory,</li><li>price per GPU-hour,</li><li>provider reputation,</li><li>uptime history,</li><li>region,</li><li>and latency requirements.</li></ul>
+            <p>For the first version, matching can remain simple. A fixed-price listing or basic order-book model is enough.</p>
+            <h2>3. Escrow Funding</h2>
+            <p>Before the job starts, the buyer locks funds in escrow.</p>
+            <p>This prevents a provider from performing work without funded payment.</p>
+            <h2>4. Job Start</h2>
+            <p>After the provider is selected and escrow is funded, the job can enter the running state.</p>
+            <p>The provider executes the workload offchain.</p>
+            <h2>5. Progress</h2>
+            <p>During execution, BRUT can receive progress evidence such as:</p>
+            <ul class="doc-list"><li>heartbeats,</li><li>uptime records,</li><li>execution logs,</li><li>and milestone signals.</li></ul>
+            <h2>6. Result Submission</h2>
+            <p>The provider submits the result and associated verification evidence.</p>
+            <p>At minimum, this can include an output hash.</p>
+            <h2>7. Verification</h2>
+            <p>The system checks the available evidence and determines whether the completion conditions were met.</p>
+            <h2>8. Settlement</h2>
+            <p>If completion is accepted, payment is released according to the payout rule.</p>
+            <p>If the job fails, payment follows the failure rule and provider stake may be affected when applicable.</p>
+            <h2>9. Reputation Update</h2>
+            <p>The result contributes to the provider's history.</p>
+            <p>Completed jobs improve the provider's record. Failed or fraudulent behavior can reduce trust and may trigger slashing.</p>
+          </section>
+
+          <section class="doc" id="provider-marketplace" aria-labelledby="provider-marketplace-title">
+            <h2 class="doc__title" id="provider-marketplace-title">Provider Marketplace</h2>
+            <p>Providers represent the supply side of BRUT.</p>
+            <h2>Provider Inventory</h2>
+            <p>A provider listing can expose:</p>
+            <ul class="doc-list"><li>provider address or identifier,</li><li>GPU model,</li><li>GPU count,</li><li>current availability,</li><li>price per GPU-hour,</li><li>region,</li><li>latency-related information,</li><li>reputation,</li><li>uptime history,</li><li>and provider-submitted benchmarks.</li></ul>
+            <h2>Price Discovery</h2>
+            <p>BRUT is intended to make fragmented GPU supply easier to compare.</p>
+            <p>Two simple pricing models fit the concept:</p>
+            <h3>Fixed Price</h3>
+            <p>The provider publishes a price per GPU-hour.</p>
+            <p>The buyer chooses a provider based on requirements and price.</p>
+            <h3>Basic Bid or Order Book</h3>
+            <p>Providers can offer prices against posted demand.</p>
+            <p>This can improve price discovery, but it is not required for the first build.</p>
+            <h2>Matching</h2>
+            <p>A provider is suitable only if it satisfies the job's minimum requirements.</p>
+            <p>Matching can use:</p>
+            <ul class="doc-list"><li>required GPU model,</li><li>GPU count,</li><li>expected duration,</li><li>provider availability,</li><li>price,</li><li>reputation,</li><li>and optional region constraints.</li></ul>
+            <p>The first version should prioritize understandable matching over complex optimization.</p>
+          </section>
+
+          <section class="doc" id="escrow-and-payments" aria-labelledby="escrow-and-payments-title">
+            <h2 class="doc__title" id="escrow-and-payments-title">Escrow and Payments</h2>
+            <p>Escrow is the main payment guarantee in BRUT.</p>
+            <h2>Funding</h2>
+            <p>The buyer locks the agreed amount before the provider begins work.</p>
+            <p>The locked amount represents the maximum payment available for that job under the agreed terms.</p>
+            <h2>Why Escrow Matters</h2>
+            <p>Escrow protects both sides:</p>
+            <ul class="doc-list"><li>the provider can verify that payment exists before starting,</li><li>the buyer knows the funds cannot be paid outside the agreed rules,</li><li>and the settlement state is transparent onchain.</li></ul>
+            <h2>Payout Models</h2>
+            <p>The broader BRUT concept supports two payout styles.</p>
+            <h3>Final Release</h3>
+            <p>The full payment remains locked until the job is verified as completed.</p>
+            <p>This is the simplest model.</p>
+            <h3>Streaming or Milestone Payout</h3>
+            <p>Part of the payment can be released as the job progresses, with a final amount released after completion verification.</p>
+            <p>This is useful for longer jobs, but it increases protocol complexity.</p>
+            <h2>Failure</h2>
+            <p>If the job does not satisfy the release conditions, full payment should not automatically be released.</p>
+            <p>Failure handling can depend on:</p>
+            <ul class="doc-list"><li>timeout,</li><li>provider disappearance,</li><li>invalid result,</li><li>missing verification evidence,</li><li>or another agreed failure condition.</li></ul>
+            <h2>MVP Direction</h2>
+            <p>For a two-day build, a simple funded escrow plus final release is the cleanest core mechanism.</p>
+            <p>Streaming and more advanced milestone logic can remain documented as an extension of the product concept.</p>
+          </section>
+
+          <section class="doc" id="verification" aria-labelledby="verification-title">
+            <h2 class="doc__title" id="verification-title">Verification</h2>
+            <p>Verification is the mechanism used to decide whether a job should be treated as successfully completed.</p>
+            <p>Because GPU execution happens offchain, BRUT must distinguish between direct blockchain facts and offchain evidence.</p>
+            <h2>Verification Inputs</h2>
+            <p>Possible inputs include:</p>
+            <ul class="doc-list"><li>hardware attestation,</li><li>output hash,</li><li>execution logs,</li><li>heartbeat data,</li><li>uptime history,</li><li>runtime monitoring,</li><li>and other proof-of-execution signals.</li></ul>
+            <h2>Output Integrity</h2>
+            <p>A basic completion check can compare an expected or submitted result reference with an output hash.</p>
+            <p>The hash does not prove every detail of execution by itself. It provides integrity for the referenced output.</p>
+            <h2>Hardware Claims</h2>
+            <p>A provider can claim that a job used a specific GPU model and count.</p>
+            <p>A stronger version of BRUT can support hardware attestation or cryptographic proof that improves confidence in this claim.</p>
+            <p>Without such evidence, hardware claims should be clearly marked as reported rather than fully verified.</p>
+            <h2>Verification Labels</h2>
+            <h3>VERIFIED ONCHAIN</h3>
+            <p>The claim is directly readable from marketplace or escrow contract state.</p>
+            <p>Examples:</p>
+            <ul class="doc-list"><li>escrow balance,</li><li>payout state,</li><li>provider stake,</li><li>job status,</li><li>slashing record.</li></ul>
+            <h3>VERIFIED VIA ATTESTATION</h3>
+            <p>The claim is supported by a hardware attestation or cryptographic proof-of-execution mechanism.</p>
+            <h3>REPORTED / UNVERIFIED</h3>
+            <p>The claim was submitted by a provider and has not been independently verified.</p>
+            <h2>Release Rule</h2>
+            <p>BRUT should not release full payment based only on an unverified claim when the job requires stronger evidence.</p>
+            <p>For the initial build, the verification rule can be intentionally narrow: heartbeat plus output-hash-based completion.</p>
+          </section>
+
+          <section class="doc" id="reputation-and-slashing" aria-labelledby="reputation-and-slashing-title">
+            <h2 class="doc__title" id="reputation-and-slashing-title">Reputation and Slashing</h2>
+            <p>Reputation gives future buyers information about provider reliability.</p>
+            <p>Slashing gives providers an economic reason not to fail or submit fraudulent claims.</p>
+            <h2>Provider Reputation</h2>
+            <p>A provider reputation record can be based on:</p>
+            <ul class="doc-list"><li>completed jobs,</li><li>failed jobs,</li><li>uptime history,</li><li>verification success,</li><li>and slashing history.</li></ul>
+            <p>The first version can keep reputation simple instead of creating a complicated score.</p>
+            <h2>Provider Stake</h2>
+            <p>A provider may lock stake before taking jobs.</p>
+            <p>The stake can be at risk when a defined failure or fraud condition occurs.</p>
+            <h2>Slashing</h2>
+            <p>Slashing is the loss of some or all provider stake.</p>
+            <p>Possible reasons include:</p>
+            <ul class="doc-list"><li>provable failure,</li><li>fraudulent completion claim,</li><li>or violation of a job rule.</li></ul>
+            <p>The exact slash formula is an implementation decision and does not need to be complex in the first version.</p>
+            <h2>Buyer History</h2>
+            <p>The broader design can also track buyer payment reliability.</p>
+            <p>However, if all buyer payments are fully escrowed before execution, the main payment risk is already reduced by the protocol.</p>
+            <h2>MVP Direction</h2>
+            <p>For a fast first build:</p>
+            <ul class="doc-list"><li>record provider completed jobs,</li><li>record failed jobs,</li><li>optionally require provider stake,</li><li>and keep slashing rules narrow and explicit.</li></ul>
+            <p>Complex dispute arbitration is outside the initial scope.</p>
+          </section>
+
+          <section class="doc" id="job-states" aria-labelledby="job-states-title">
+            <h2 class="doc__title" id="job-states-title">Job States</h2>
+            <p>BRUT uses explicit job states so both buyer and provider can understand the current stage of a job.</p>
+            <h2>Core States</h2>
+            <div class="doc-table"><table><thead><tr><th>State</th><th>Meaning</th></tr></thead><tbody><tr><td>Queued</td><td>Job exists but execution has not started</td></tr><tr><td>Running</td><td>Provider is executing the workload</td></tr><tr><td>Completed</td><td>Job passed the completion rule</td></tr><tr><td>Failed</td><td>Job did not complete successfully</td></tr><tr><td>Disputed</td><td>Completion or settlement is challenged</td></tr></tbody></table></div>
+            <h2>Simple State Flow</h2>
+            <pre class="doc-pre"><code>Queued
+  |
+  v
+Running
+  |   |    v   v
+Completed  Failed
+          Disputed</code></pre>
+            <p>The exact transition rules belong to the contract implementation, but every transition should be explicit and auditable.</p>
+            <h2>Two-Day Build</h2>
+            <p>For the first build, the active states can be kept minimal:</p>
+            <pre class="doc-pre"><code>Queued -&gt; Running -&gt; Completed
+                  -&gt; Failed</code></pre>
+            <p><code>Disputed</code> can remain part of the documented full concept without requiring an arbitration system in the first version.</p>
+          </section>
+
+          <section class="doc" id="core-data-model" aria-labelledby="core-data-model-title">
+            <h2 class="doc__title" id="core-data-model-title">Core Data Model</h2>
+            <p>The following conceptual model captures the information BRUT needs to represent.</p>
+            <h2>Job Identity</h2>
+            <ul class="doc-list"><li>Job ID</li><li>Buyer address</li><li>Provider address</li></ul>
+            <h2>Requirements</h2>
+            <ul class="doc-list"><li>GPU type</li><li>GPU count</li><li>Workload type</li><li>Duration</li><li>Budget</li><li>Container image or script reference</li></ul>
+            <h2>Matching</h2>
+            <ul class="doc-list"><li>Price per GPU-hour</li><li>Provider reputation</li><li>Region</li><li>Latency constraints</li></ul>
+            <h2>Escrow</h2>
+            <ul class="doc-list"><li>Locked amount</li><li>Payout schedule</li><li>Release conditions</li></ul>
+            <h2>Verification</h2>
+            <ul class="doc-list"><li>Hardware attestation reference</li><li>Output hash</li><li>Uptime or heartbeat record</li><li>Verification label</li></ul>
+            <h2>Reputation</h2>
+            <ul class="doc-list"><li>Provider stake</li><li>Completed job history</li><li>Failed job history</li><li>Slashing events</li><li>Buyer payment history</li></ul>
+            <h2>Status</h2>
+            <ul class="doc-list"><li>Queued</li><li>Running</li><li>Completed</li><li>Failed</li><li>Disputed</li></ul>
+            <h2>Sources</h2>
+            <ul class="doc-list"><li>Onchain source</li><li>Attestation source</li><li>Reported source</li><li>Last updated timestamp or block context</li></ul>
+            <p>The data model is conceptual. It does not require every field to live directly inside one smart contract.</p>
+          </section>
+
+          <section class="doc" id="data-sources" aria-labelledby="data-sources-title">
+            <h2 class="doc__title" id="data-sources-title">Data Sources</h2>
+            <p>BRUT uses multiple data sources because not every part of a GPU job exists onchain.</p>
+            <h2>Onchain Sources</h2>
+            <p>These are read directly from BRUT contracts.</p>
+            <p>Examples:</p>
+            <ul class="doc-list"><li>escrow balance,</li><li>release conditions,</li><li>provider stake,</li><li>slashing history,</li><li>job status,</li><li>and payout progress.</li></ul>
+            <p>These facts have the strongest direct relationship with the protocol because they are part of blockchain state.</p>
+            <h2>Offchain Sources</h2>
+            <p>These are collected from the compute environment.</p>
+            <p>Examples:</p>
+            <ul class="doc-list"><li>GPU model and count,</li><li>execution logs,</li><li>output hashes,</li><li>heartbeat data,</li><li>uptime monitoring,</li><li>and provider benchmarks.</li></ul>
+            <p>Offchain data should include a source and confidence level.</p>
+            <h2>Source Visibility</h2>
+            <p>The frontend should avoid presenting all information as if it came from the same trust source.</p>
+            <p>For each relevant claim, BRUT can show whether it is:</p>
+            <ul class="doc-list"><li>verified onchain,</li><li>verified via attestation,</li><li>or reported and unverified.</li></ul>
+            <p>This makes the trust model understandable without pretending that offchain GPU execution is automatically trustless.</p>
+          </section>
+
+          <section class="doc" id="api-model" aria-labelledby="api-model-title">
+            <h2 class="doc__title" id="api-model-title">API Model</h2>
+            <p>The API is an interface between the frontend, compute coordination layer, and BRUT protocol state.</p>
+            <p>The following routes describe the conceptual product interface.</p>
+            <h2>Providers</h2>
+            <h3><code>GET /providers</code></h3>
+            <p>Returns available providers and their public marketplace information.</p>
+            <h3><code>GET /providers/{id}</code></h3>
+            <p>Returns details for one provider.</p>
+            <p>Possible information:</p>
+            <ul class="doc-list"><li>GPU inventory,</li><li>price,</li><li>reputation,</li><li>availability,</li><li>region,</li><li>and history.</li></ul>
+            <h2>Jobs</h2>
+            <h3><code>POST /jobs</code></h3>
+            <p>Creates a new job request.</p>
+            <h3><code>GET /jobs/{id}</code></h3>
+            <p>Returns the job's main data.</p>
+            <h3><code>GET /jobs/{id}/status</code></h3>
+            <p>Returns the current job state.</p>
+            <h3><code>POST /jobs/{id}/verify</code></h3>
+            <p>Submits or triggers verification data for the job.</p>
+            <h3><code>GET /jobs/{id}/escrow</code></h3>
+            <p>Returns escrow-related information.</p>
+            <h3><code>GET /jobs/{id}/sources</code></h3>
+            <p>Returns the sources and confidence labels associated with job claims.</p>
+            <h2>Role of the API</h2>
+            <p>The API is not the final trust source for onchain facts.</p>
+            <p>When data comes from a smart contract, the source of truth remains the blockchain state. The API mainly makes product data easier for the frontend to consume.</p>
+          </section>
+
+          <section class="doc" id="two-day-mvp-scope" aria-labelledby="two-day-mvp-scope-title">
+            <h2 class="doc__title" id="two-day-mvp-scope-title">Two-Day MVP Scope</h2>
+            <p>BRUT should begin very narrow.</p>
+            <p>The goal of the first build is not to solve every decentralized-compute problem. It is to demonstrate the full economic loop with the smallest coherent system.</p>
+            <h2>Build Now</h2>
+            <h3>1. One Chain</h3>
+            <p>Use one EVM-compatible chain.</p>
+            <p>No multi-chain coordination is required.</p>
+            <h3>2. Provider Registration</h3>
+            <p>A provider can register:</p>
+            <ul class="doc-list"><li>identity/address,</li><li>GPU inventory,</li><li>basic price,</li><li>and optional stake.</li></ul>
+            <h3>3. Job Posting</h3>
+            <p>A buyer can create a compute job with:</p>
+            <ul class="doc-list"><li>GPU requirement,</li><li>workload type,</li><li>duration or budget,</li><li>and workload reference.</li></ul>
+            <h3>4. Simple Matching</h3>
+            <p>Use either:</p>
+            <ul class="doc-list"><li>fixed-price provider listings,</li><li>or a very small order-book-style selection flow.</li></ul>
+            <p>No complex matching engine is required.</p>
+            <h3>5. Escrow</h3>
+            <p>Buyer funds must be locked before execution begins.</p>
+            <p>The first version can use final payout on verified completion.</p>
+            <h3>6. Basic Verification</h3>
+            <p>Use a narrow mechanism based on:</p>
+            <ul class="doc-list"><li>heartbeat or uptime signal,</li><li>and output hash.</li></ul>
+            <p>This is intentionally simpler than full hardware attestation.</p>
+            <h3>7. Job Status</h3>
+            <p>Support the minimum useful state flow:</p>
+            <pre class="doc-pre"><code>Queued -&gt; Running -&gt; Completed
+                  -&gt; Failed</code></pre>
+            <h3>8. Basic Reputation</h3>
+            <p>Record provider completion history.</p>
+            <p>A simple completed/failed history is enough for the first version.</p>
+            <h3>9. Frontend</h3>
+            <p>The frontend only needs to support the core journey:</p>
+            <ul class="doc-list"><li>browse providers,</li><li>post a job,</li><li>fund the job,</li><li>view status,</li><li>and view completion or failure.</li></ul>
+            <h2>Do Not Build Yet</h2>
+            <p>Do not spend the two-day window on:</p>
+            <ul class="doc-list"><li>dispute arbitration,</li><li>multi-chain support,</li><li>exotic GPU types,</li><li>complex dynamic pricing,</li><li>advanced reputation formulas,</li><li>a native token,</li><li>fully trustless hardware proof,</li><li>or a generalized cloud orchestration platform.</li></ul>
+            <p>The first version should prove one thing: BRUT can coordinate a GPU job between two parties with funded escrow, explicit status, verification evidence, and settlement.</p>
+          </section>
+
+          <section class="doc" id="trust-and-failure-model" aria-labelledby="trust-and-failure-model-title">
+            <h2 class="doc__title" id="trust-and-failure-model-title">Trust and Failure Model</h2>
+            <p>BRUT reduces trust in the economic exchange, but the first version does not eliminate every trust assumption around offchain compute.</p>
+            <h2>What Is Trust-Minimized</h2>
+            <p>The following can be enforced or observed onchain:</p>
+            <ul class="doc-list"><li>whether payment was funded,</li><li>who the buyer is,</li><li>who the provider is,</li><li>the current recorded job state,</li><li>whether payment was released,</li><li>provider stake,</li><li>and recorded slashing events.</li></ul>
+            <h2>What Requires Offchain Evidence</h2>
+            <p>The following cannot be proven by ordinary contract state alone:</p>
+            <ul class="doc-list"><li>exact GPU hardware used,</li><li>whether every computation step was correct,</li><li>actual runtime performance,</li><li>execution logs,</li><li>and physical provider uptime.</li></ul>
+            <p>These claims need attestation, cryptographic proof, monitoring, or a weaker reported status.</p>
+            <h2>Failure Cases</h2>
+            <h3>Provider Does Not Start</h3>
+            <p>The job stays uncompleted and should not release full payment.</p>
+            <h3>Provider Disappears Mid-Job</h3>
+            <p>The job can eventually fail through a timeout rule.</p>
+            <h3>Invalid or Missing Result</h3>
+            <p>Completion should not be accepted if required evidence is missing.</p>
+            <h3>Hardware Claim Cannot Be Verified</h3>
+            <p>The claim should be shown as reported or unverified instead of being presented as proven.</p>
+            <h3>Buyer Refuses to Pay</h3>
+            <p>This risk is reduced by requiring escrow funding before the job begins.</p>
+            <h2>Disputes</h2>
+            <p>The complete product concept includes a dispute path.</p>
+            <p>However, a full arbitration system is intentionally excluded from the two-day MVP.</p>
+          </section>
+
+          <section class="doc" id="what-brut-is-not" aria-labelledby="what-brut-is-not-title">
+            <h2 class="doc__title" id="what-brut-is-not-title">What BRUT Is Not</h2>
+            <p>BRUT has a narrow role.</p>
+            <p>It is not:</p>
+            <ul class="doc-list"><li>a centralized cloud provider,</li><li>a company that owns the GPUs being rented,</li><li>a native-token trading platform,</li><li>a wallet,</li><li>a general freelance marketplace,</li><li>a hardware manufacturer,</li><li>a GPU reseller,</li><li>or a price speculation product.</li></ul>
+            <p>BRUT's purpose is:</p>
+            <blockquote class="doc-quote">Match idle GPU supply with compute demand and make the economic exchange enforceable through onchain rules.</blockquote>
+            <p>The actual compute remains on provider hardware.</p>
+          </section>
+
+          <section class="doc" id="example-job" aria-labelledby="example-job-title">
+            <h2 class="doc__title" id="example-job-title">Example Job</h2>
+            <p>A buyer creates the following request:</p>
+            <blockquote class="doc-quote">Fine-tune a 7B model using 4x A100 GPUs for 6 hours.</blockquote>
+            <p>The job can be represented as:</p>
+            <div class="doc-table"><table><thead><tr><th>Detail</th><th>Example</th></tr></thead><tbody><tr><td>GPU requirement</td><td>A100 x4</td></tr><tr><td>Workload</td><td>Model fine-tuning</td></tr><tr><td>Duration</td><td>6 hours</td></tr><tr><td>Provider</td><td>Provider #4821</td></tr><tr><td>Provider reputation</td><td>98%</td></tr><tr><td>Price</td><td>$1.85 per GPU-hour</td></tr><tr><td>Total</td><td>$44.40</td></tr><tr><td>Escrow</td><td>Funded before execution</td></tr><tr><td>Verification</td><td>Execution evidence + output hash</td></tr><tr><td>Provider stake</td><td>$50 at risk</td></tr><tr><td>Status</td><td>Running</td></tr></tbody></table></div>
+            <h2>Example Flow</h2>
+            <ol class="doc-list doc-list--num"><li>Buyer creates the job.</li><li>Provider #4821 is selected.</li><li>Buyer locks $44.40 in escrow.</li><li>Provider starts execution.</li><li>Heartbeats show that the job is still running.</li><li>Provider submits the result and output hash.</li><li>BRUT checks the required verification input.</li><li>Job is marked completed.</li><li>Escrow releases payment.</li><li>Provider history is updated.</li></ol>
+            <p>The user interface can also link to the relevant onchain job, escrow, verification, and settlement transactions.</p>
+          </section>
+
+          <section class="doc" id="product-positioning" aria-labelledby="product-positioning-title">
+            <h2 class="doc__title" id="product-positioning-title">Product Positioning</h2>
+            <h2>Primary Positioning</h2>
+            <p><strong>A trustless marketplace for renting GPU compute.</strong></p>
+            <h2>Short Description</h2>
+            <p>BRUT connects idle GPU supply with people who need compute and coordinates payment through onchain escrow.</p>
+            <h2>One-Line Message</h2>
+            <p><strong>Idle GPUs. Real jobs. Paid onchain.</strong></p>
+            <h2>Product Value</h2>
+            <p>For buyers:</p>
+            <ul class="doc-list"><li>discover independent GPU supply,</li><li>compare price and provider history,</li><li>lock payment under known rules,</li><li>and view verification evidence before settlement.</li></ul>
+            <p>For providers:</p>
+            <ul class="doc-list"><li>monetize idle GPU capacity,</li><li>prove that a buyer has funded payment,</li><li>build portable reputation,</li><li>and receive automatic settlement after valid completion.</li></ul>
+            <h2>Core Differentiator</h2>
+            <p>The product is not only a directory of GPU providers.</p>
+            <p>Its central feature is the combination of:</p>
+            <ul class="doc-list"><li>matching,</li><li>escrow,</li><li>verification,</li><li>status,</li><li>reputation,</li><li>and onchain settlement.</li></ul>
+          </section>
+
+          <section class="doc" id="glossary" aria-labelledby="glossary-title">
+            <h2 class="doc__title" id="glossary-title">Glossary</h2>
+            <h2>Buyer</h2>
+            <p>The party requesting GPU compute and funding the job.</p>
+            <h2>Provider</h2>
+            <p>The party supplying GPU capacity and executing the workload.</p>
+            <h2>Job</h2>
+            <p>A compute request containing requirements, pricing, participants, status, and settlement conditions.</p>
+            <h2>Escrow</h2>
+            <p>Funds locked before execution and released according to job rules.</p>
+            <h2>GPU-Hour</h2>
+            <p>A pricing unit representing one GPU used for one hour.</p>
+            <h2>Heartbeat</h2>
+            <p>A periodic signal showing that a provider or job is still active.</p>
+            <h2>Output Hash</h2>
+            <p>A cryptographic digest used to identify and check the integrity of a result.</p>
+            <h2>Hardware Attestation</h2>
+            <p>Evidence intended to increase confidence that a specific hardware configuration was actually used.</p>
+            <h2>Reputation</h2>
+            <p>A record of provider reliability based on past jobs.</p>
+            <h2>Stake</h2>
+            <p>Value locked by a provider that can be placed at risk under defined rules.</p>
+            <h2>Slashing</h2>
+            <p>The loss of provider stake after a defined failure or fraudulent action.</p>
+            <h2>VERIFIED ONCHAIN</h2>
+            <p>A claim directly supported by blockchain state.</p>
+            <h2>VERIFIED VIA ATTESTATION</h2>
+            <p>A claim supported by hardware attestation or cryptographic proof.</p>
+            <h2>REPORTED / UNVERIFIED</h2>
+            <p>A claim submitted by a participant without independent verification.</p>
+          </section>
+    </main>
+  </div>
+
+  <footer class="page__footer">
+    <div class="container">
+      <span>BRUT coordinates the agreement. Compute runs on provider hardware.</span>
+      <a href="index.html">Back to the overview</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+  /* The contents list is a sidebar on a wide screen and a disclosure on a
+     narrow one, where leaving it open would fill the whole first screen. */
+  (function () {
+    var toc = document.getElementById("docs-toc");
+    var narrow = window.matchMedia("(max-width: 959px)");
+    var sync = function () { toc.open = !narrow.matches; };
+    sync();
+    if (narrow.addEventListener) narrow.addEventListener("change", sync);
+    toc.addEventListener("click", function (event) {
+      if (narrow.matches && event.target.closest("a")) toc.open = false;
+    });
+  })();
+
+  /* Mark whichever section the reader is in, in the sidebar. */
+  (function () {
+    var links = Array.prototype.slice.call(document.querySelectorAll("[data-doc-link]"));
+    var sections = Array.prototype.slice.call(document.querySelectorAll(".doc"));
+    if (!("IntersectionObserver" in window) || !sections.length) return;
+
+    var byId = {};
+    links.forEach(function (link) { byId[link.getAttribute("href").slice(1)] = link; });
+
+    var seen = {};
+    var observer = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) { seen[entry.target.id] = entry.isIntersecting; });
+      var current = null;
+      sections.forEach(function (section) { if (!current && seen[section.id]) current = section.id; });
+      links.forEach(function (link) { link.classList.remove("is-current"); });
+      if (current && byId[current]) byId[current].classList.add("is-current");
+    }, { rootMargin: "-96px 0px -70% 0px" });
+
+    sections.forEach(function (section) { observer.observe(section); });
+  })();
+</script>
+</body>
+</html>

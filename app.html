@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BRUT App | Rent GPU Compute</title>
+<meta name="description" content="Browse GPU providers, post a compute job, lock escrow, and follow the job to settlement.">
+<meta name="theme-color" content="#f1f1f1">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="BRUT">
+<meta property="og:title" content="BRUT App | Rent GPU Compute">
+<meta property="og:description" content="Browse GPU providers, post a compute job, lock escrow, and follow the job to settlement.">
+<link rel="icon" href="assets/brand/mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/brut.css">
+<link rel="stylesheet" href="css/base.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5.5-5.5L19 12l-5.5 5.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6m0-6-8.5 8.5M18 14v4.5A1.5 1.5 0 0 1 16.5 20h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div class="page">
+  <header class="masthead">
+    <div class="container masthead__inner">
+      <a class="brand" href="index.html" aria-label="BRUT home">
+        <img src="assets/brand/mark.svg" width="15" height="21.5" alt="">
+        <span>BRUT</span>
+      </a>
+      <nav class="pill-nav" aria-label="Primary">
+        <a href="index.html">Overview</a>
+        <a href="app.html" aria-current="page">App</a>
+        <a href="docs.html">Docs</a>
+      </nav>
+      <button class="btn" type="button" data-wallet-connect hidden>
+        <span data-wallet-label>Connect</span>
+      </button>
+    </div>
+  </header>
+
+  <main class="page__main" id="main">
+
+    <section class="app-hero">
+      <div class="container app-hero__inner">
+        <div class="app-hero__copy">
+          <p class="label">BRUT app</p>
+          <h1>Rent a GPU. Settle onchain.</h1>
+          <p class="lede">Pick a provider, post the job, and lock payment before any work starts.</p>
+        </div>
+        <div class="netstrip" data-network-state="pending">
+          <span class="netstrip__state">
+            <span class="netstrip__dot" aria-hidden="true"></span>
+            <span data-network-label>No contract configured</span>
+          </span>
+          <span class="netstrip__detail mono" data-network-detail>Sample registry</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- step one: the supply side -->
+    <section class="step" aria-labelledby="providers-title">
+      <div class="container">
+        <header class="step__head">
+          <div>
+            <p class="label">Step one</p>
+            <h2 id="providers-title">Choose a provider</h2>
+          </div>
+          <div class="filters" role="group" aria-label="Filter by GPU">
+            <button class="chip is-on" type="button" data-filter="all">All</button>
+            <button class="chip" type="button" data-filter="A100">A100</button>
+            <button class="chip" type="button" data-filter="H100">H100</button>
+            <button class="chip" type="button" data-filter="RTX 4090">RTX 4090</button>
+          </div>
+        </header>
+
+        <div class="table-wrap">
+          <table class="ledger">
+            <caption class="sr-only">GPU providers, their price and their history</caption>
+            <thead>
+              <tr>
+                <th scope="col">Provider</th>
+                <th scope="col">GPU</th>
+                <th scope="col">Free</th>
+                <th scope="col">Per GPU hour</th>
+                <th scope="col">Region</th>
+                <th scope="col">Uptime</th>
+                <th scope="col">Jobs</th>
+                <th scope="col">Stake</th>
+                <th scope="col"><span class="sr-only">Select</span></th>
+              </tr>
+            </thead>
+            <tbody data-provider-rows></tbody>
+          </table>
+        </div>
+        <p class="note" data-provider-empty hidden>No provider matches that GPU.</p>
+      </div>
+    </section>
+
+    <!-- step two and three: the demand side and the money -->
+    <section class="step" aria-labelledby="job-title">
+      <div class="container workspace">
+        <div class="workspace__form">
+          <header class="step__head">
+            <div>
+              <p class="label">Step two</p>
+              <h2 id="job-title">Describe the job</h2>
+            </div>
+          </header>
+
+          <form class="jobform" data-job-form novalidate>
+            <div class="field">
+              <label for="job-gpu">GPU</label>
+              <select id="job-gpu" name="gpu" data-field="gpu">
+                <option value="A100">A100</option>
+                <option value="H100">H100</option>
+                <option value="RTX 4090">RTX 4090</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="job-count">GPU count</label>
+              <input id="job-count" name="count" type="number" min="1" max="64" step="1" value="4" data-field="count">
+            </div>
+            <div class="field">
+              <label for="job-workload">Workload</label>
+              <select id="job-workload" name="workload" data-field="workload">
+                <option>Model fine tuning</option>
+                <option>Batch inference</option>
+                <option>Rendering</option>
+                <option>Training from scratch</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="job-hours">Duration in hours</label>
+              <input id="job-hours" name="hours" type="number" min="1" max="720" step="1" value="6" data-field="hours">
+            </div>
+            <div class="field field--wide">
+              <label for="job-image">Container image or script</label>
+              <input id="job-image" name="image" type="text" spellcheck="false" autocomplete="off"
+                     placeholder="ghcr.io/example/trainer:v3" value="ghcr.io/example/trainer:v3" data-field="image">
+            </div>
+            <div class="field field--wide">
+              <label for="job-budget">Most you will pay</label>
+              <input id="job-budget" name="budget" type="number" min="1" step="0.01" value="60" data-field="budget">
+              <p class="hint">Escrow locks the job total, never more than this.</p>
+            </div>
+            <p class="formerror" data-job-error role="alert" hidden></p>
+          </form>
+        </div>
+
+        <aside class="workspace__escrow" aria-labelledby="escrow-title">
+          <div class="card escrow">
+            <p class="label">Step three</p>
+            <h2 id="escrow-title">Fund escrow</h2>
+
+            <dl class="escrow__lines">
+              <div><dt>Provider</dt><dd data-quote="provider">None selected</dd></div>
+              <div><dt>GPU hours</dt><dd data-quote="hours">24.0</dd></div>
+              <div><dt>Per GPU hour</dt><dd data-quote="rate">Select a provider</dd></div>
+              <div class="escrow__total"><dt>Locked on funding</dt><dd data-quote="total">0.00</dd></div>
+            </dl>
+
+            <ul class="escrow__rules">
+              <li><span class="stamp stamp--onchain">Verified onchain</span><span>Escrow balance and payout state.</span></li>
+              <li><span class="stamp stamp--attested">Via attestation</span><span>Output hash for the finished run.</span></li>
+              <li><span class="stamp stamp--reported">Reported</span><span>GPU model and count, as claimed.</span></li>
+            </ul>
+
+            <p class="escrow__rule">Release needs an unbroken heartbeat and a submitted output hash.</p>
+
+            <button class="btn escrow__go" type="button" data-fund disabled>
+              <span data-fund-label>Select a provider first</span>
+              <svg width="16" height="16" aria-hidden="true"><use href="#i-arrow"/></svg>
+            </button>
+            <p class="note" data-escrow-note>Nothing is deployed yet, so funding runs as a local walkthrough.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- step four: the job itself -->
+    <section class="step" aria-labelledby="run-title" data-run-section hidden>
+      <div class="container">
+        <header class="step__head">
+          <div>
+            <p class="label">Step four</p>
+            <h2 id="run-title">Follow the job</h2>
+          </div>
+          <button class="btn btn--quiet" type="button" data-run-reset>Start over</button>
+        </header>
+
+        <ol class="states" data-states aria-label="Job state">
+          <li data-state="Queued"><span>Queued</span></li>
+          <li data-state="Running"><span>Running</span></li>
+          <li data-state="Completed"><span>Completed</span></li>
+        </ol>
+
+        <div class="run">
+          <div class="card run__trace">
+            <p class="label">Evidence</p>
+            <ol class="trace" data-trace></ol>
+          </div>
+
+          <div class="card run__receipt">
+            <p class="label">Job record</p>
+            <dl class="receipt">
+              <div><dt>Job</dt><dd class="mono" data-run="id"></dd></div>
+              <div><dt>Provider</dt><dd data-run="provider"></dd></div>
+              <div><dt>Workload</dt><dd data-run="workload"></dd></div>
+              <div><dt>Escrow</dt><dd data-run="escrow"></dd></div>
+              <div><dt>Heartbeat</dt><dd data-run="heartbeat"></dd></div>
+              <div><dt>Output hash</dt><dd class="mono" data-run="hash"></dd></div>
+              <div><dt>Settlement</dt><dd data-run="settlement"></dd></div>
+            </dl>
+            <a class="btn btn--quiet receipt__link" data-run-explorer hidden target="_blank" rel="noopener noreferrer">
+              View onchain <svg width="16" height="16" aria-hidden="true"><use href="#i-external"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="page__footer">
+    <div class="container">
+      <span>BRUT coordinates the agreement. Compute runs on provider hardware.</span>
+      <span data-contract-line>No contract configured</span>
+    </div>
+  </footer>
+</div>
+
+<script src="config/contracts.js"></script>
+<script type="module" src="js/app.js"></script>
+<script type="module" src="js/wallet.js"></script>
+</body>
+</html>

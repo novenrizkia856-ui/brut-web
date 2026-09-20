@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 305 305" width="305" height="305" fill="none">
+  <title>Compute core</title>
+  <!--
+    The centre of the evidence constellation. The reference rendered a crystal
+    here with three.js, which the export could not carry over. This is the same
+    job in the page's own language: a compute unit as nested isometric frames,
+    drawn in thin white so the floating nodes around it stay the subject.
+  -->
+  <g stroke="#ffffff" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <g opacity=".85" stroke-width="1.4">
+      <path d="M152.5 66 236 114v96l-83.5 48L69 210v-96Z"/>
+      <path d="M69 114l83.5 48L236 114"/>
+      <path d="M152.5 162v96"/>
+    </g>
+    <g opacity=".45" stroke-width="1.1">
+      <path d="M152.5 106 201 134v56l-48.5 28L104 190v-56Z"/>
+      <path d="M104 134l48.5 28L201 134"/>
+      <path d="M152.5 162v56"/>
+    </g>
+    <g opacity=".22" stroke-width="1">
+      <path d="M152.5 30 267 96v113"/>
+      <path d="M152.5 30 38 96v113"/>
+      <path d="M38 209l114.5 66L267 209"/>
+    </g>
+  </g>
+  <circle cx="152.5" cy="162" r="3.2" fill="#ffffff" opacity=".9"/>
+</svg>

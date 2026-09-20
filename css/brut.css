@@ -1,0 +1,50 @@
+/*
+ * BRUT layer.
+ *
+ * export.css carries the layout, type and motion exactly as they came out of
+ * the reference build. Nothing in here moves anything: this file only names
+ * the palette that export already uses, so the rest of the site (app, docs)
+ * can reach for the same values instead of repeating hex codes.
+ */
+
+:root {
+  /* surfaces and ink, read back out of export.css */
+  --brut-paper: #f1f1f1;
+  --brut-page: #fafafa;
+  --brut-ink: #070707;
+  --brut-soft-ink: #201d1e;
+  --brut-mute: #a1a1a1;
+  --brut-hairline: rgba(7, 7, 7, 0.14);
+  --brut-dark-hairline: rgba(255, 255, 255, 0.15);
+
+  /* the three accents the export already ships, given their BRUT meaning */
+  --brut-onchain: #17de8e;   /* verified onchain      */
+  --brut-attested: #ab55ff;  /* verified via attestation */
+  --brut-reported: #ff4c4f;  /* reported, unverified  */
+
+  /* job states reuse the same three, so nothing new enters the palette */
+  --brut-state-queued: var(--brut-mute);
+  --brut-state-running: var(--brut-attested);
+  --brut-state-completed: var(--brut-onchain);
+  --brut-state-failed: var(--brut-reported);
+}
+
+/*
+ * The job card's status dot inherits the reference red. A running job is not
+ * a failure, so it takes the running accent instead. One declaration, so the
+ * card keeps every other value the export gave it.
+ */
+.brut-job-card__regime i {
+  background: var(--brut-state-running);
+}
+
+/*
+ * A link with no destination yet. main.js strips the href and marks it, so it
+ * stops being a link; this makes it look like one too, rather than sitting
+ * there inviting a click that does nothing.
+ */
+[data-brut-link][aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: default;
+  pointer-events: none;
+}

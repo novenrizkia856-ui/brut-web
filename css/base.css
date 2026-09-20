@@ -1,0 +1,273 @@
+/*
+ * Shared foundation for app.html and docs.html.
+ *
+ * index.html does not load this: it carries the whole exported stylesheet,
+ * which already declares these faces and its own reset. This file is the same
+ * two faces and the same type and surface language, minus the landing layout,
+ * so the other pages match without pulling 80kB of section CSS they never use.
+ */
+
+@font-face {
+  font-family: "BRUT Serif";
+  src: url(../assets/13346e982420.woff2) format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "BRUT Sans";
+  src: url(../assets/780cf59b7711.woff2) format("woff2");
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+}
+
+:root {
+  --brut-serif: "BRUT Serif", Georgia, "Times New Roman", serif;
+  --brut-sans: "BRUT Sans", "Helvetica Neue", Arial, sans-serif;
+
+  --brut-gutter: clamp(20px, 4vw, 64px);
+  --brut-radius: 30px;
+  --brut-radius-sm: 8px;
+
+  /* the card treatment the landing page uses everywhere */
+  --brut-card-bg: #efefef;
+  --brut-card-frame: inset 0 0 0 4px #000;
+  --brut-card-lift: 0 0 40px rgba(0, 0, 0, 0.25);
+
+  --brut-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+/* Several components below set display on a class, which would otherwise
+   win against the user agent rule for [hidden]. */
+[hidden] { display: none !important; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--brut-paper);
+  color: var(--brut-ink);
+  font-family: var(--brut-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  margin: 0;
+  font-family: var(--brut-serif);
+  font-weight: 500;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+}
+
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+a { color: inherit; }
+img, svg { display: block; }
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brut-ink);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 100;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--brut-ink);
+  color: #fff;
+  text-decoration: none;
+}
+.skip-link:focus { top: 16px; }
+
+/* ---------------------------------------------------------------- shell -- */
+
+.page {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: var(--brut-gutter);
+}
+
+/* --------------------------------------------------------------- header -- */
+
+.masthead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  padding: 18px 0;
+  background: color-mix(in srgb, var(--brut-paper) 86%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.masthead__inner {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--brut-serif);
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+}
+.brand img { width: 15px; height: 21.5px; }
+
+.pill-nav {
+  display: flex;
+  margin-inline: auto;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 999px;
+  background: rgba(7, 7, 7, 0.06);
+}
+
+.pill-nav a {
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  text-decoration: none;
+  transition: background 0.3s var(--brut-ease), color 0.3s var(--brut-ease);
+}
+.pill-nav a[aria-current="page"] { background: var(--brut-ink); color: #fff; }
+.pill-nav a:not([aria-current]):hover { background: rgba(7, 7, 7, 0.08); }
+
+/* --------------------------------------------------------------- pieces -- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--brut-ink);
+  color: #fff;
+  font-size: 13px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.25s var(--brut-ease), transform 0.25s var(--brut-ease);
+}
+.btn:hover { opacity: 0.86; }
+.btn:active { transform: translateY(1px); }
+.btn[disabled],
+.btn[aria-disabled="true"] { opacity: 0.35; cursor: not-allowed; }
+
+.btn--quiet {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--brut-hairline);
+  color: var(--brut-ink);
+}
+
+.label {
+  color: var(--brut-mute);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lede {
+  max-width: 52ch;
+  margin-top: 14px;
+  color: var(--brut-soft-ink);
+  font-size: clamp(14px, 1.3vw, 17px);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.card {
+  padding: 26px 28px;
+  border-radius: var(--brut-radius);
+  background: var(--brut-card-bg);
+  box-shadow: var(--brut-card-frame), var(--brut-card-lift);
+}
+
+/* verification labels, the three accents from css/brut.css */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.stamp::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+.stamp--onchain { color: #0b8f5d; }
+.stamp--attested { color: #7a2fd0; }
+.stamp--reported { color: #c02b2e; }
+
+/* --------------------------------------------------------------- footer -- */
+
+.page__footer {
+  margin-top: auto;
+  padding: 34px 0;
+  border-top: 1px solid var(--brut-hairline);
+  color: var(--brut-mute);
+  font-size: 12px;
+}
+.page__footer .container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (max-width: 760px) {
+  .pill-nav { order: 3; width: 100%; margin-inline: 0; overflow-x: auto; }
+  .masthead__inner { flex-wrap: wrap; }
+}
