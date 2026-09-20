@@ -17,6 +17,7 @@ export const config = {
   explorerUrl: text(RAW.explorerUrl).replace(/\/+$/, ""),
   marketAddress: isAddress(RAW.marketAddress) ? text(RAW.marketAddress) : "",
   tokenAddress: isAddress(RAW.tokenAddress) ? text(RAW.tokenAddress) : "",
+  tokenLaunched: RAW.tokenLaunched === true,
   walletConnectProjectId: text(RAW.walletConnectProjectId),
   preferWalletConnect: Boolean(RAW.preferWalletConnect),
   links: {

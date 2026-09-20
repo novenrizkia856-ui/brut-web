@@ -25,6 +25,8 @@ machines, and BRUT coordinates the economic agreement around it.
 | `js/scale.js` | Puts back the stage scaling the export froze at one window size. |
 | `js/motion.js` | The hero camera, the tilted job card, the route line and its dots. |
 | `js/accordion.js` | The four proof points and their progress rails. |
+| `js/nav-tone.js` | Recolours the fixed header over light and dark sections. |
+| `js/contract-bar.js` | The token address bar at the top of the landing page. |
 | `js/quote.js` | Pure pricing and funding rules. Covered by `test/`. |
 | `js/app.js` | The app: provider list, job form, escrow, the run. |
 | `js/sample-registry.js` | Providers the app reads until a market contract exists. |
@@ -146,6 +148,7 @@ window.CONTRACT_CONFIG = {
   explorerUrl: "https://explorer.example",
   marketAddress: "0x...",
   tokenAddress: "",
+  tokenLaunched: false,
   links: { docs: "docs.html", x: "" },
   reads: [],
 };
@@ -159,7 +162,8 @@ What each field turns on:
 | `chainId` | Shown beside the network name, and used for wallet sanity checks. |
 | `rpcUrl` | Required before any live read runs. |
 | `marketAddress` | The provider registry, job records and escrow. Enables live reads. |
-| `tokenAddress` | There is no token yet. Empty leaves the contract line as "Coming soon". |
+| `tokenAddress` | The token contract, shown in the bar at the top of the landing page. |
+| `tokenLaunched` | What reveals that address. False keeps the bar reading "Coming soon". |
 | `explorerUrl` | Makes provider addresses and the job record clickable. |
 | `links.x` | Enables the footer social link. Empty leaves it dimmed and inert. |
 
@@ -175,7 +179,18 @@ funded escrow through the heartbeat and the output hash to settlement, with
 each line carrying the label that says how strongly it is backed. It never
 builds, signs or sends a transaction.
 
-### 3. Contracts still to build
+### 3. The token bar
+
+The token is separate from the protocol contracts, so it gets its own line at
+the top of the landing page rather than a slot in the footer. It reads
+"Coming soon" until `tokenLaunched` is true, whatever `tokenAddress` holds.
+That split exists so the address can be filled in and checked ahead of time,
+and launch is then a one word edit on the deployed site with no rebuild.
+
+Once live the bar shows the address, shortened under 768px with the full value
+on hover, a copy button, and a link to the explorer when `explorerUrl` is set.
+
+### 4. Contracts still to build
 
 `brut-contracts` does not exist yet. The two day scope in
 `content/docs/two-day-mvp-scope.md` is the shortest path to a live site:

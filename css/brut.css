@@ -48,3 +48,108 @@
   cursor: default;
   pointer-events: none;
 }
+
+/*
+ * Token contract bar.
+ *
+ * The token is a separate thing from the protocol, so its address gets its own
+ * line at the top of the page rather than being folded into the footer. It
+ * sits under the section nav and borrows that pill's language exactly: fixed,
+ * centred, hairline in currentColor, blurred backing. Colour comes from the
+ * tone the header is on, so it flips with everything else in js/nav-tone.js.
+ */
+.brut-ca {
+  position: fixed;
+  z-index: 31;
+  top: calc(74px * var(--brut-ui-scale, 1));
+  left: 50%;
+  display: flex;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  align-items: center;
+  gap: calc(9px * var(--brut-ui-scale, 1));
+  padding: calc(5px * var(--brut-ui-scale, 1)) calc(6px * var(--brut-ui-scale, 1))
+           calc(5px * var(--brut-ui-scale, 1)) calc(14px * var(--brut-ui-scale, 1));
+  border: 1px solid rgba(0, 0, 0, 0.11);
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  color: #fff;
+  font-family: var(--brut-sans, "BRUT Sans", sans-serif);
+  font-size: calc(12px * var(--brut-ui-scale, 1));
+  line-height: 1;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transform: translateX(-50%);
+  transition: color 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.brut-ca__label {
+  flex-shrink: 0;
+  opacity: 0.55;
+  font-size: calc(10px * var(--brut-ui-scale, 1));
+  font-weight: 500;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.brut-ca__value {
+  overflow: hidden;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: calc(12px * var(--brut-ui-scale, 1));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brut-ca[data-state="soon"] .brut-ca__value {
+  font-family: var(--brut-serif, "BRUT Serif", serif);
+  opacity: 0.75;
+}
+
+.brut-ca__copy,
+.brut-ca__explorer {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: calc(6px * var(--brut-ui-scale, 1)) calc(11px * var(--brut-ui-scale, 1));
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  color: inherit;
+  font: inherit;
+  font-size: calc(11px * var(--brut-ui-scale, 1));
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.25s ease;
+}
+.brut-ca__copy:hover,
+.brut-ca__explorer:hover { background: color-mix(in srgb, currentColor 22%, transparent); }
+.brut-ca__copy[data-copy-state="copied"] { background: var(--brut-onchain); color: #05301f; }
+
+.brut-ca__explorer { padding: calc(6px * var(--brut-ui-scale, 1)); }
+
+/* The rule above sets display, which would otherwise beat the user agent
+   rule for [hidden] and leave a dead link showing before launch. */
+.brut-ca__explorer[hidden] { display: none; }
+.brut-ca__explorer svg { width: 13px; height: 13px; }
+
+.brut-ca__copy:focus-visible,
+.brut-ca__explorer:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+
+/* The nav drops to 72px then 62px on the way down, so the bar follows it. */
+@media (max-width: 1024px) {
+  .brut-ca { top: 120px; }
+}
+@media (max-width: 767px) {
+  .brut-ca {
+    top: 106px;
+    gap: 7px;
+    padding: 4px 5px 4px 11px;
+    font-size: 11px;
+  }
+  .brut-ca__label { font-size: 9px; }
+  .brut-ca__value { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brut-ca { transition: none; }
+}

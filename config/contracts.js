@@ -28,10 +28,17 @@ window.CONTRACT_CONFIG = {
   marketAddress: "",
 
   /**
-   * BRUT token. There is no token yet; while this is empty the contract
-   * line reads "Coming soon" and the copy button stays disabled.
+   * BRUT token. The token is separate from the protocol contracts above, and
+   * this is the only address the contract bar at the top of the page shows.
    */
   tokenAddress: "",
+
+  /**
+   * What actually reveals the address. Leave it false to fill in and review
+   * tokenAddress ahead of time while the bar still reads "Coming soon", then
+   * flip it to true at launch. One word, no rebuild.
+   */
+  tokenLaunched: false,
 
   /**
    * WalletConnect v2 project id, from cloud.reown.com.
