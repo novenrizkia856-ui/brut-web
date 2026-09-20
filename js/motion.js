@@ -1,15 +1,15 @@
 /**
  * Scroll motion.
  *
- * The export kept the markup and the CSS but lost the script that drove them,
- * so several blocks were frozen mid animation: the hero camera, the tilted job
- * card, the route line and its dots. This file drives the same custom
- * properties the stylesheet already reads, at the same values the reference
- * build used.
+ * The overview is the landing, so the job card is the first thing on screen
+ * and it arrives already flat. The reference played this transform the other
+ * way, tilting a card up into place as its section arrived. Here it runs in
+ * reverse: the card lies back and lifts away as the reader scrolls on, so the
+ * section closes itself instead of introducing itself.
  *
  * Nothing here is required for the page to be readable. Under
- * prefers-reduced-motion every element is placed at its finished state and no
- * scroll listener is attached.
+ * prefers-reduced-motion the card stays flat and no scroll listener is
+ * attached.
  */
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -17,98 +17,39 @@ const clamp = (n, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
 const mix = (a, b, t) => a + (b - a) * t;
 const easeOut = (t) => 1 - (1 - t) ** 3;
 
-/* ---------------------------------------------------------------- hero ---
- * The hero is three screens tall with a sticky stage. Across that scroll the
- * camera pulls back from 2x to 1x while tracking the route, the line draws in,
- * each dot lands as the camera reaches it, and the copy fades near the end.
- */
-const ROUTE_POINTS = [
-  [16.5, 54], [26, 42], [35.3, 33], [44.9, 21], [54.2, 14], [63.6, 22],
-  [73, 30], [82.5, 26], [92, 33], [101.4, 38.5], [110.5, 35],
-];
-const ROUTE_LENGTH = 123.565; /* matches the dasharray in the markup */
-const ART_CENTRE = [61, 49];  /* middle of the 122 x 98 artwork viewBox */
-
-function heroParts() {
-  const hero = document.querySelector(".brut-hero");
-  if (!hero) return null;
-  return {
-    hero,
-    stage: hero.querySelector(".brut-hero__stage"),
-    scale: hero.querySelector(".brut-hero__graph-scale"),
-    pan: hero.querySelector(".brut-hero__graph-pan"),
-    route: hero.querySelector(".brut-hero__route"),
-    dots: [...hero.querySelectorAll("[data-hero-dot]")],
-  };
-}
-
-/* Position along the route at progress p, linear between the known points. */
-function routeAt(p) {
-  const span = (ROUTE_POINTS.length - 1) * clamp(p);
-  const i = Math.min(ROUTE_POINTS.length - 2, Math.floor(span));
-  const t = span - i;
-  return [mix(ROUTE_POINTS[i][0], ROUTE_POINTS[i + 1][0], t), mix(ROUTE_POINTS[i][1], ROUTE_POINTS[i + 1][1], t)];
-}
-
-function drawHero(parts, p) {
-  const { hero, scale, pan, route, dots } = parts;
-  /* The camera tracks the scrollbar one to one. An eased camera reads as a
-     lag between the wheel and the picture, so only the dots are eased. */
-  const eased = clamp(p);
-  const zoom = mix(2, 1, eased);
-  /* Early on the camera tracks the route. As it pulls back it settles on the
-     middle of the chart, so the sequence ends on the whole picture. */
-  const [rx, ry] = routeAt(eased);
-  const settle = eased * eased;
-  const x = mix(rx, ART_CENTRE[0], settle);
-  const y = mix(ry, ART_CENTRE[1], settle);
-
-  if (scale) scale.setAttribute("transform", `translate(61 49) scale(${zoom.toFixed(4)})`);
-  if (pan) pan.setAttribute("transform", `translate(${(-x).toFixed(3)} ${(-y).toFixed(3)})`);
-  if (route) route.style.strokeDashoffset = (ROUTE_LENGTH * (1 - eased)).toFixed(3);
-
-  dots.forEach((dot, i) => {
-    const reached = clamp((eased - i / dots.length) * dots.length * 1.6);
-    dot.setAttribute("r", (1.5 * easeOut(reached)).toFixed(3));
-  });
-
-  hero.style.setProperty("--brut-hero-graph-opacity", mix(0.45, 0.9, eased).toFixed(3));
-  /* the copy and the scroll hint clear out over the last quarter */
-  hero.style.setProperty("--brut-hero-fade", clamp((p - 0.74) / 0.22).toFixed(3));
-  hero.style.setProperty("--brut-hero-progress", clamp(p).toFixed(4));
-}
-
-/* ------------------------------------------------------- tilted job card ---
- * The card lies back and lifts into place as its section arrives.
+/* ------------------------------------------------------------ the card ---
+ * q is how present the card is: 1 flat and facing the reader, 0 laid back
+ * and gone. The angle and scale are the reference's own values, played from
+ * the other end.
  */
 function drawCard(card, q) {
   const eased = easeOut(clamp(q));
-  card.style.opacity = mix(0.4, 1, eased).toFixed(3);
-  card.style.transform =
-    `translateY(${mix(-220, 0, eased).toFixed(2)}px) ` +
-    `rotateX(${mix(70, 0, eased).toFixed(3)}deg) ` +
-    `scale(${mix(0.6, 1, eased).toFixed(4)})`;
 
-  /* The state pills ship hidden and land once the card is nearly flat. Their
-     stagger is already in the stylesheet as a transition delay. */
-  const landed = eased > 0.62;
+  card.style.opacity = mix(0, 1, eased).toFixed(3);
+  card.style.transform =
+    `translateY(${mix(-210, 0, eased).toFixed(2)}px) ` +
+    `rotateX(${mix(72, 0, eased).toFixed(3)}deg) ` +
+    `scale(${mix(0.62, 1, eased).toFixed(4)})`;
+
+  /* The state pills belong to the card face, so they go with it. */
+  const facing = eased > 0.62;
   for (const tag of card.querySelectorAll(".brut-job-card__tag")) {
-    tag.style.opacity = landed ? "1" : "0";
-    tag.style.transform = landed ? "scale(1)" : "scale(.4)";
+    tag.style.opacity = facing ? "1" : "0";
+    tag.style.transform = facing ? "scale(1)" : "scale(.4)";
   }
 }
 
-/* Progress of an element through the viewport, 0 before it arrives, 1 once it
- * has settled in the upper half. */
-function progressOf(el, lead = 0.9, tail = 0.35) {
-  const r = el.getBoundingClientRect();
-  const h = window.innerHeight;
-  return clamp((h * lead - r.top) / (h * (lead - tail) + r.height * 0.5));
-}
-
-function finish(parts, card) {
-  if (parts) drawHero(parts, 1);
-  if (card) drawCard(card, 1);
+/**
+ * How far the reader has moved past the landing section.
+ *
+ * The card holds its face for a moment first, so a small scroll does not
+ * immediately start closing the thing the reader just arrived at.
+ */
+function departure(section) {
+  const box = section.getBoundingClientRect();
+  const hold = window.innerHeight * 0.12;
+  const travel = Math.max(1, box.height * 0.7);
+  return clamp((-box.top - hold) / travel);
 }
 
 /* ----------------------------------------------------------- reveals -----
@@ -142,26 +83,20 @@ function reveals() {
 
 /* --------------------------------------------------------------- start ---- */
 function start() {
-  const parts = heroParts();
   const card = document.querySelector(".brut-built__visual");
+  const section = document.querySelector(".brut-built");
   reveals();
+  if (!card || !section) return;
 
   if (REDUCED) {
-    finish(parts, card);
+    drawCard(card, 1);
     return;
   }
 
   let queued = false;
   const frame = () => {
     queued = false;
-    if (parts) {
-      const box = parts.hero.getBoundingClientRect();
-      /* the stage is sticky, so the travel is the section minus the stage */
-      const stage = parts.stage ? parts.stage.getBoundingClientRect().height : window.innerHeight;
-      const range = Math.max(1, box.height - stage);
-      drawHero(parts, clamp(-box.top / range));
-    }
-    if (card) drawCard(card, progressOf(card));
+    drawCard(card, 1 - departure(section));
   };
   const onScroll = () => {
     if (queued) return;

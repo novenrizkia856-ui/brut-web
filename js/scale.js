@@ -64,12 +64,6 @@ function apply() {
   for (const section of document.querySelectorAll(".brut-bc-boundaries, .brut-bc-protocol-screen, .brut-bc-closing")) {
     section.style.setProperty("--brut-bc-stage-scale", round(stage));
   }
-
-  /* The blurred plate behind the hero copy is sized from the copy itself. */
-  const copy = document.querySelector(".brut-hero__copy");
-  if (copy) {
-    copy.style.setProperty("--brut-copy-shadow-width", `${Math.round(copy.getBoundingClientRect().width)}px`);
-  }
 }
 
 apply();

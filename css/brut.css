@@ -153,3 +153,62 @@
 @media (prefers-reduced-motion: reduce) {
   .brut-ca { transition: none; }
 }
+
+/*
+ * The hero is gone.
+ *
+ * The client made the overview section the landing, so the reference hero,
+ * its three screen camera and its scroll hint were removed. What is left of
+ * .brut-hero is the chrome that lived beside the stage rather than inside it:
+ * the brand, the section nav and the contract bar, all position fixed. The
+ * element stays so those keep the descendant rules the export wrote for them,
+ * and it is collapsed so it occupies no space in the flow.
+ */
+.brut-hero {
+  height: 0;
+  min-height: 0;
+}
+
+/*
+ * The overview now opens the page, so it clears the fixed chrome above it
+ * rather than sliding under a hero that used to cover the gap.
+ */
+.brut-built {
+  padding-top: clamp(124px, 15vh, 190px);
+}
+
+/*
+ * The dither behind the boundaries section is a cloud, so it moves like one.
+ * Two layers drifting at different speeds and scales read as depth; one layer
+ * alone reads as a sliding image. Travel is large and the cycle short enough
+ * to be noticed inside the few seconds a reader spends on the section.
+ */
+@keyframes brut-cloud-drift {
+  0%   { transform: translate3d(-4%, -2%, 0) scale(1.18); }
+  50%  { transform: translate3d(4%, 3%, 0) scale(1.32); }
+  100% { transform: translate3d(-4%, -2%, 0) scale(1.18); }
+}
+
+@keyframes brut-cloud-pan {
+  0%   { background-position: 22% 38%; }
+  50%  { background-position: 78% 62%; }
+  100% { background-position: 22% 38%; }
+}
+
+.brut-bc-boundaries__dither > img {
+  will-change: transform;
+  animation: brut-cloud-drift 19s ease-in-out infinite;
+}
+
+.brut-bc-boundaries__dither > canvas {
+  /* The capture carried this as an inline !important shorthand, which no
+     stylesheet could pan. It lives here now so the position can animate. */
+  background: url(../assets/b89e9cb951cb.png) 22% 38% / 165% 165% no-repeat;
+  will-change: background-position;
+  animation: brut-cloud-pan 13s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brut-bc-boundaries__dither > img,
+  .brut-bc-boundaries__dither > canvas { animation: none; }
+}

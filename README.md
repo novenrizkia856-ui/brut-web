@@ -23,7 +23,10 @@ machines, and BRUT coordinates the economic agreement around it.
 | `css/app.css` | The app only. |
 | `css/docs.css` | The docs page only. |
 | `js/scale.js` | Puts back the stage scaling the export froze at one window size. |
-| `js/motion.js` | The hero camera, the tilted job card, the route line and its dots. |
+| `js/motion.js` | The job card laying back as the reader leaves the landing. |
+| `js/enter.js` | Plays the entrances the export authored but never switched on. |
+| `js/core.js` | Draws the evidence core. Geometry lives in `js/wireframe.js`. |
+| `js/wireframe.js` | Pure solids, rotation and projection. Covered by `test/`. |
 | `js/accordion.js` | The four proof points and their progress rails. |
 | `js/nav-tone.js` | Recolours the fixed header over light and dark sections. |
 | `js/contract-bar.js` | The token address bar at the top of the landing page. |
@@ -44,8 +47,14 @@ There is no bundler. The site is static files, served as they are.
 ## Design
 
 The landing page is the supplied reference build, adapted rather than
-redesigned. Layout, spacing, type scale, colour, motion language and section
-order are the reference's; the product inside them is BRUT.
+redesigned. Spacing, type scale, colour, motion language and section order are
+the reference's; the product inside them is BRUT.
+
+The one structural change the client asked for: the reference hero is gone and
+the overview section opens the page. What is left of `.brut-hero` is the fixed
+chrome that lived beside the stage rather than inside it, collapsed to no
+height, so the brand, the section nav and the contract bar keep the rules the
+export wrote for them.
 
 | | Value |
 |---|---|
@@ -94,20 +103,39 @@ values the reference itself was holding:
 
 | Element | Behaviour |
 |---|---|
-| Hero camera | Pulls back 2x to 1x across three screens, tracking the route, settling on the whole chart |
-| Route line | Draws over the same 123.565 dash length the markup carries |
-| Route dots | Land in turn as the camera reaches each one |
-| Hero copy | Fades over the last quarter of the hero scroll |
-| Job card | Lifts from `rotateX(70deg) scale(0.6)` to flat as its section arrives |
-| State pills | Land once the card is nearly flat, staggered by the stylesheet |
+| Job card | Opens flat, then lies back to `rotateX(72deg) scale(0.62)` as the reader scrolls on |
+| State pills | Go with the card face they belong to |
 | Proof points | Advance every 7 seconds, with the rail as the progress bar |
+| Evidence core | Turning icosahedron, counter turning octahedron, one light walking an edge at a time |
+| Scorecard rows | Enter staggered, on the delays the export already declared |
+| Trace cards | Cards, dots and connectors enter in sequence, same delays |
+| First build panel | Slides in with its four rows staggered behind it |
+| Boundaries cloud | Two dither layers drifting and panning against each other |
+
+The card runs the reference transform backwards. The reference tilted a card
+up into place as its section arrived; here the card is the first thing on
+screen, so it starts flat and closes itself as the reader moves on.
+
+The scorecard, trace and first build entrances were already fully authored in
+the export, keyframes and per element delays and all. What it had lost was the
+script that switched them on, so the markup shipped frozen in the finished
+state. `js/enter.js` adds the class each one waits for. That mattered beyond
+polish for the first build panel, whose start state is opacity 0: without the
+class the whole section was invisible.
 
 `prefers-reduced-motion` places every element at its finished state and
 attaches no scroll listener.
 
-The three canvases in the export were rendered by three.js. SingleFile captured
+The canvases in the export were rendered by three.js. SingleFile captured
 their last frame as a background image, so the dither and dot textures survive
-as stills. Nothing on the page depends on them.
+as stills and now drift under their own CSS animation. The crystal canvas was
+captured empty, so `js/core.js` draws the evidence core itself.
+
+The browser preview runs as a hidden document, where `requestAnimationFrame`
+never fires, so the core cannot be verified on screen. `test/wireframe.test.mjs`
+covers it instead: the solids, that rotation moves the points, that the
+projection stays inside the canvas at every angle, and that the travelling
+light only ever walks edges that meet.
 
 ## Local development
 
