@@ -1,0 +1,275 @@
+/*
+ * NVIDIA theme.
+ *
+ * The client asked for an NVIDIA look: black surfaces, white type, and the signature
+ * #76B900 green as the one accent. This file is loaded last on every page, so the layout
+ * underneath (export.css, brut.css, base.css, app.css, docs.css) is untouched and the theme
+ * can be swapped by removing one <link>.
+ *
+ * Red survives only where it means failure: a missed heartbeat, a failed job.
+ */
+
+:root {
+  --nv-green: #76b900;
+  --nv-green-hover: #8ad300;
+  --nv-black: #000000;
+  --nv-surface: #111111;
+  --nv-panel: #1a1a1a;
+  --nv-line: #2c2c2c;
+  --nv-line-strong: #3a3a3a;
+  --nv-text: #ffffff;
+  --nv-soft: #cfcfcf;
+  --nv-mute: #8c8c8c;
+
+  /* the shared tokens every page reads */
+  --brut-paper: var(--nv-black);
+  --brut-page: var(--nv-black);
+  --brut-ink: var(--nv-text);
+  --brut-soft-ink: var(--nv-soft);
+  --brut-mute: var(--nv-mute);
+  --brut-hairline: rgba(255, 255, 255, 0.14);
+
+  --brut-onchain: var(--nv-green);
+  --brut-attested: #e6e6e6;
+  --brut-reported: #ff5a5f;
+  --brut-state-queued: var(--nv-mute);
+  --brut-state-running: var(--nv-green);
+  --brut-state-completed: var(--nv-green);
+  --brut-state-failed: var(--brut-reported);
+
+  --brut-card-bg: var(--nv-panel);
+  --brut-card-frame: inset 0 0 0 1px var(--nv-line-strong);
+  --brut-card-lift: 0 0 40px rgba(0, 0, 0, 0.6);
+
+  color-scheme: dark;
+}
+
+html,
+body { background: var(--nv-black); }
+
+::selection { background: var(--nv-green); color: #000; }
+
+/* ============================================================== landing ==== */
+
+.brut-home,
+.brut-content { background: var(--nv-black); }
+
+/* the fixed chrome sits on black everywhere now */
+.brut-hero__header,
+.brut-hero__nav,
+.brut-ca { color: #fff; }
+.brut-hero__brand-mark { filter: none; }
+.brut-hero__nav { border-color: rgba(255, 255, 255, 0.12); }
+
+.brut-hero .brut-hero__language {
+  border-color: var(--nv-green);
+  background: var(--nv-green);
+  color: #000;
+}
+.brut-hero .brut-hero__language:hover { background: var(--nv-green-hover); }
+
+.brut-ca { border-color: rgba(255, 255, 255, 0.12); }
+.brut-ca__copy { background: var(--nv-green); color: #000; }
+.brut-ca__copy:hover { background: var(--nv-green-hover); }
+
+/* ---------------------------------------------------------- the landing */
+
+.brut-built {
+  background:
+    linear-gradient(90deg, transparent 0 49.95%, rgba(255, 255, 255, 0.05) 50%, transparent 50.05%),
+    var(--nv-black) !important;
+}
+.brut-built .brut-built__heading { color: #fff; }
+.brut-built__heading em:after { background: var(--nv-green); }
+.brut-built .brut-built__description { color: var(--nv-soft); }
+
+.brut-job-card {
+  background: var(--nv-surface);
+  box-shadow: inset 0 0 0 2px var(--nv-green), 0 0 60px rgba(118, 185, 0, 0.12);
+  color: var(--nv-soft);
+}
+.brut-job-card__mark { filter: invert(1); }
+.brut-job-card__pair span,
+.brut-job-card__pair strong small,
+.brut-job-card__config dt,
+.brut-job-card__metrics span { color: var(--nv-mute); }
+.brut-job-card__pair strong,
+.brut-job-card__regime,
+.brut-job-card__config dd,
+.brut-job-card__metrics dt,
+.brut-job-card__metrics dd { color: #fff; }
+.brut-job-card__config .brut-job-card__test {
+  background: var(--nv-green);
+  box-shadow: none;
+}
+.brut-job-card__config .brut-job-card__test dt { color: #000; }
+.brut-job-card__plot {
+  background:
+    repeating-linear-gradient(to right, transparent, transparent 11.9%, #242424 11.9%, #242424 12%),
+    repeating-linear-gradient(to bottom, transparent, transparent 24.9%, #242424 24.9%, #242424 25%),
+    #0b0b0b;
+  box-shadow: inset 0 0 0 1px var(--nv-line);
+}
+.brut-job-card__bar:before { background: rgba(255, 255, 255, 0.08); }
+.brut-job-card__stem--green,
+.brut-job-card__body-mark--green { background: var(--nv-green); }
+.brut-job-card__plot::after {
+  background: linear-gradient(90deg, transparent, rgba(118, 185, 0, 0.14) 70%, rgba(118, 185, 0, 0.55));
+}
+.brut-job-card__tag { background: var(--nv-green); color: #000; }
+.brut-job-card__tag small { opacity: 0.7; }
+.brut-job-card__tag--1 { background: #2e2e2e; color: #fff; }
+.brut-job-card__tag--2,
+.brut-job-card__tag-time--accent { background: #fff; color: #000; }
+@keyframes brut-dot-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(118, 185, 0, 0.7); }
+  100% { box-shadow: 0 0 0 9px rgba(118, 185, 0, 0); }
+}
+.brut-content .brut-job-card__metrics {
+  background: rgba(20, 20, 20, 0.85);
+  box-shadow: 0 0 0 1px var(--nv-line), 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+.brut-job-card__metrics > .brut-job-card__metric--evidence { background: var(--nv-green); }
+.brut-job-card__metric--evidence dt,
+.brut-job-card__metric--evidence dd { color: #000; }
+.brut-job-card__metric--evidence span { color: rgba(0, 0, 0, 0.65); }
+
+/* ------------------------------------------------------------ the proof */
+
+.brut-proof-progress__rail > span { background: var(--nv-green); }
+.brut-proof-accordion__item.is-active .brut-proof-accordion__title { color: #fff; }
+.brut-proof-node.is-hit .brut-proof-node__float {
+  outline-color: var(--nv-green);
+}
+
+/* -------------------------------------------------- scorecard and trace */
+
+.brut-st-section {
+  background: var(--nv-black) !important;
+  color: #fff;
+}
+.brut-st-scoring__copy > p,
+.brut-st-scoring__copy h2,
+.brut-st-scoring__rules li,
+.brut-st-trace__copy > p,
+.brut-st-trace__copy h2 { color: #fff; }
+.brut-st-scoring__copy > p,
+.brut-st-trace__copy > p { color: var(--nv-soft); }
+.brut-st-scoring__rules img { filter: invert(1); }
+
+.brut-st-scorecard { background: #1b2a02; }
+.brut-st-scorecard::before {
+  background: conic-gradient(from 0deg, transparent 0 58%, rgba(118, 185, 0, 0.95) 76%, #e6ffb3 80%, transparent 90%);
+}
+.brut-st-scorecard__panel { background: var(--nv-surface); color: #fff; }
+.brut-st-scorecard__logo,
+.brut-st-scorecard__primary strong img { filter: invert(1); }
+.brut-st-scorecard__primary > span,
+.brut-st-scorecard__footnote,
+.brut-st-scorecard__protocol,
+.brut-st-scorecard__table thead th { color: var(--nv-mute); }
+.brut-st-scorecard__table { color: #fff; }
+.brut-st-scorecard__table tbody tr { border-color: var(--nv-line-strong); }
+.brut-st-scorecard__table tbody tr:nth-child(3) { border-color: var(--nv-line-strong); background: var(--nv-panel); }
+.brut-st-scorecard__table tbody tr.is-lit {
+  border-color: var(--nv-green);
+  background: rgba(118, 185, 0, 0.12);
+  box-shadow: 0 6px 18px rgba(118, 185, 0, 0.2);
+}
+@keyframes brut-cell-tick {
+  0% { background: rgba(118, 185, 0, 0.55); }
+  100% { background: transparent; }
+}
+
+.brut-st-trace__panel { background: #1b2a02; }
+.brut-st-trace__step {
+  border-color: var(--nv-line-strong);
+  background: var(--nv-surface);
+  color: #fff;
+}
+.brut-st-trace__step h3 { color: #fff; }
+.brut-st-trace__step p { color: var(--nv-mute); }
+.brut-st-trace__label { background: var(--nv-green) !important; color: #000; }
+/* the dots and connector are drawn in light ink already, so they stay as they are */
+.brut-st-trace__dot { filter: drop-shadow(0 0 4px rgba(118, 185, 0, 0.6)); }
+
+/* ------------------------------------------------------------ first build */
+
+.brut-bc-protocol-copy__eyebrow { color: var(--nv-green) !important; }
+.brut-bc-protocol-panel { background: #1b2a02; }
+.brut-bc-protocol-panel::before {
+  background: conic-gradient(from 0deg, transparent 0 58%, rgba(118, 185, 0, 0.95) 76%, #e6ffb3 80%, transparent 90%);
+}
+.brut-bc-protocol-row.is-checking { background: #20290f; box-shadow: inset 0 0 0 1px var(--nv-green); }
+.brut-bc-protocol-row::after {
+  background-color: var(--nv-green);
+}
+
+/* ---------------------------------------------------------------- closing */
+
+.brut-bc-closing-track,
+.brut-bc-closing { background: var(--nv-black); color: #fff; }
+.brut-bc-closing__dots { background-image: radial-gradient(#262626 1.4px, transparent 1.4px); }
+.brut-bc-closing__paragraph,
+.brut-bc-closing__stage > h2,
+.brut-bc-closing__brand strong,
+.brut-bc-closing__footer .brut-bc-closing__footer-links > a { color: #fff; }
+.brut-bc-closing__paragraph { color: var(--nv-soft); }
+.brut-bc-closing__status { background: var(--nv-green); color: #000; }
+.brut-bc-closing__footer { background: var(--nv-surface); box-shadow: inset 0 0 0 1px var(--nv-line); }
+.brut-bc-closing__brand img,
+.brut-bc-closing__footer-links img { filter: invert(1); }
+.brut-bc-closing__tagline-shadow { background: var(--nv-black); }
+
+/* ============================================================= app, docs === */
+
+.masthead { background: rgba(0, 0, 0, 0.82); border-bottom: 1px solid var(--nv-line); }
+.pill-nav { background: rgba(255, 255, 255, 0.06); }
+.pill-nav a[aria-current="page"] { background: var(--nv-green); color: #000; }
+.pill-nav a:not([aria-current]):hover { background: rgba(255, 255, 255, 0.08); }
+
+.btn { background: var(--nv-green); color: #000; }
+.btn:hover { background: var(--nv-green-hover); opacity: 1; }
+.btn--quiet { background: transparent; color: #fff; box-shadow: inset 0 0 0 1px var(--nv-line-strong); }
+.btn--quiet:hover { background: rgba(255, 255, 255, 0.06); }
+
+.stamp--onchain { color: var(--nv-green); }
+.stamp--attested { color: #e6e6e6; }
+.stamp--reported { color: #ff6b6f; }
+
+.skip-link { background: var(--nv-green); color: #000; }
+:focus-visible { outline-color: var(--nv-green); }
+
+/* app */
+.netstrip,
+.chip { background: rgba(255, 255, 255, 0.06); }
+.chip:hover { background: rgba(255, 255, 255, 0.11); }
+.chip.is-on { background: var(--nv-green); color: #000; }
+.ledger tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
+.ledger tbody tr.is-picked { background: rgba(118, 185, 0, 0.1); }
+.pick { background: var(--nv-green); color: #000; }
+.pick[disabled] { background: rgba(255, 255, 255, 0.08); color: var(--nv-mute); }
+tr.is-picked .pick { background: #fff; color: #000; }
+.field input,
+.field select {
+  background: var(--nv-surface);
+  box-shadow: inset 0 0 0 1px var(--nv-line-strong);
+  color: #fff;
+}
+.escrow__lines,
+.escrow__lines > div,
+.receipt > div { border-color: rgba(255, 255, 255, 0.1); }
+.states li.is-done { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35); }
+.states li.is-now { background: var(--nv-green); color: #000; }
+.trace li { border-left-color: rgba(255, 255, 255, 0.16); }
+.trace li::before { background: #fff; }
+.trace li[data-tone="onchain"]::before { background: var(--nv-green); }
+
+/* docs */
+.docs-side__list a:hover { background: rgba(255, 255, 255, 0.06); }
+.docs-side__list a.is-current { background: var(--nv-green); color: #000; }
+.doc-quote { border-left-color: var(--nv-green); background: rgba(255, 255, 255, 0.04); }
+.doc code { background: rgba(255, 255, 255, 0.08); }
+.doc-pre { background: var(--nv-surface); box-shadow: inset 0 0 0 1px var(--nv-line); }
+.doc-flow,
+.docs-side { background: rgba(255, 255, 255, 0.03); }

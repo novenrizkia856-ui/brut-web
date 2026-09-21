@@ -404,3 +404,31 @@
 .brut-hero__nav,
 .brut-ca { color: #070707; }
 .brut-hero__brand-mark { filter: invert(1); }
+
+/*
+ * Font variables, set outright.
+ *
+ * export.css declares `--brut-serif: var(--brut-serif, ...)` on .brut-content, a variable
+ * defined in terms of itself. CSS treats that cycle as invalid, so every section below
+ * falls back to its own fallback list. The proof, run and boundaries sections happen to
+ * list "BRUT Serif" first; the scorecard and trace sections list "Bitter", a face this site
+ * does not load, so they were rendering in the system serif. Declaring each section's
+ * variables directly removes the dependence on fallbacks altogether.
+ */
+.brut-home .brut-content {
+  --brut-serif: "BRUT Serif", Georgia, "Times New Roman", serif;
+  --brut-sans: "BRUT Sans", "Helvetica Neue", Arial, sans-serif;
+}
+.brut-home .brut-st-section {
+  --brut-st-serif: "BRUT Serif", Georgia, serif;
+  --brut-st-sans: "BRUT Sans", Arial, sans-serif;
+}
+.brut-home .brut-proof-section,
+.brut-home .brut-one-run-section {
+  --proof-run-serif: "BRUT Serif", Georgia, serif;
+  --proof-run-sans: "BRUT Sans", Arial, sans-serif;
+}
+.brut-home .brut-bc-sequence {
+  --brut-bc-serif: "BRUT Serif", Georgia, serif;
+  --brut-bc-sans: "BRUT Sans", Arial, sans-serif;
+}

@@ -33,7 +33,8 @@ const TILT = 0.42;      /* the ring leans toward the viewer */
 const DOT_PX = 2.5;     /* target size of one dither cell, in CSS pixels */
 
 const INK = "#f2f2f2";
-const DIM = "#8f94a3";
+const DIM = "#7c8270";
+const EDGE = "#76b900"; /* part outlines and pulses, in the theme green */
 
 export function createField(visual) {
   const canvas = document.createElement("canvas");
@@ -89,10 +90,10 @@ export function createField(visual) {
     const on = dither(light, size);
     const edge = outline(ids, size);
 
-    /* Three inks: outlines at full strength, bright tones, dim tones. */
+    /* Three inks: outlines in the theme green, bright tones, dim tones. */
     const dot = Math.max(1, cell * 0.78);
     const inkOf = (i) => (edge[i] ? 2 : on[i] ? (light[i] > 0.7 ? 1 : 0) : -1);
-    for (const [colour, which] of [[DIM, 0], [INK, 1], [INK, 2]]) {
+    for (const [colour, which] of [[DIM, 0], [INK, 1], [EDGE, 2]]) {
       context.fillStyle = colour;
       for (let y = 0; y < size; y += 1) {
         for (let x = 0; x < size; x += 1) {
@@ -133,7 +134,7 @@ export function createField(visual) {
 
     /* a pulse is one pixel of the chip's own grid, travelling */
     const grain = Math.max(3, Math.round(cell * 1.4));
-    context.fillStyle = INK;
+    context.fillStyle = EDGE;
     for (let k = pulses.length - 1; k >= 0; k -= 1) {
       const t = (now - pulses[k].since) / PULSE_MS;
       if (t >= 1) {
