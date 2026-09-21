@@ -25,6 +25,8 @@ import {
   readNow,
   wallets,
   signerFor,
+  prepare,
+  release,
   explain,
   eth,
   parseAmount,
@@ -249,7 +251,14 @@ const bound = new WeakSet();
 
 async function useWallet(w, prompt) {
   try {
-    const accounts = await w.provider.request({ method: prompt ? "eth_requestAccounts" : "eth_accounts" });
+    await prepare(w);
+    let accounts;
+    if (w.init) {
+      /* WalletConnect: a new session opens the QR modal; a restored one is used as it is. */
+      accounts = w.provider.session ? w.provider.accounts : prompt ? await w.provider.enable() : [];
+    } else {
+      accounts = await w.provider.request({ method: prompt ? "eth_requestAccounts" : "eth_accounts" });
+    }
     const account = Array.isArray(accounts) && accounts[0] ? getAddress(accounts[0]) : "";
     if (!account) return;
     state.wallet = w;
@@ -279,6 +288,7 @@ async function useWallet(w, prompt) {
 }
 
 function disconnect() {
+  release(state.wallet);
   state.wallet = null;
   state.account = "";
   store.set("wallet", "");
@@ -910,7 +920,7 @@ function traceOf(job) {
   }
   const d = job.dispute;
   if (d.raisedAt) {
-    add("onchain", onchain, `${same(d.disputant, job.buyer) ? "Buyer" : "Provider"} disputed the verdict.`, `bond ${eth(d.bond || state.protocol.disputeBond)} ${ETH} · decide by ${stamp(d.resolveBy)}`, d.raisedAt);
+    add("onchain", onchain, `${same(d.disputant, job.buyer) ? "Buyer" : "Provider"} disputed the verdict.`, `${d.bond > 0n ? `bond ${eth(d.bond)} ${ETH} · ` : ""}decide by ${stamp(d.resolveBy)}`, d.raisedAt);
     if (d.resolved) {
       add(
         "onchain",
@@ -1007,6 +1017,7 @@ function paintActions(job) {
   const isBuyer = same(job.buyer, me);
   const isProvider = same(job.provider, me);
   const p = state.protocol;
+  if (!p) return; /* repainted once the protocol parameters arrive */
   const parts = [];
   const button = (act, label, quiet = false) => `<button class="btn${quiet ? " btn--quiet" : ""}" type="button" data-act="${act}">${esc(label)}</button>`;
   const text = (t) => `<p class="hint">${esc(t)}</p>`;
@@ -1380,7 +1391,8 @@ async function reconnect() {
   if (!uuid) return;
   /* EIP 6963 announcements arrive asynchronously; give them a moment. */
   await new Promise((resolve) => setTimeout(resolve, 150));
-  const w = wallets().find((x) => x.info.uuid === uuid) || (uuid === "injected" ? wallets()[0] : null);
+  const list = wallets();
+  const w = list.find((x) => x.info.uuid === uuid) || (uuid === "injected" ? list.find((x) => !x.init) : null);
   if (w) await useWallet(w, false);
 }
 

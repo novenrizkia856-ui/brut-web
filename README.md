@@ -35,7 +35,7 @@ machines, and BRUT coordinates the economic agreement around it.
 | `js/quote.js` | Pure pricing and sending rules, exact to the wei. Covered by `test/`. |
 | `js/chain.js` | ABIs, reads over the public RPC, wallet discovery, chain switching, error messages. |
 | `js/app.js` | The app: rent, provide, jobs and operator panels over the live contracts. |
-| `vendor/` | ethers 6.17.0, self hosted, with its licence. |
+| `vendor/` | ethers 6.17.0 and WalletConnect ethereum provider 2.25.0 (bundled with its QR modal, licences at the end of the file), self hosted. WalletConnect loads only when picked. |
 | `tools/sync-contracts.mjs` | Copies a deployment's addresses into `config/contracts.js`. |
 | `js/config.js` | Reads `config/contracts.js` and answers "is this configured?". |
 | `config/contracts.js` | The only file to edit after a deployment. Stays outside any build. |
@@ -218,6 +218,7 @@ the addresses are filled in, the app says the contracts are not configured.
 | Field | Effect |
 |---|---|
 | `network`, `chainId`, `rpcUrl`, `explorerUrl`, `currency` | The chain every read and write targets, and how a wallet adds it. |
+| `walletConnectProjectId` | Adds WalletConnect, so phone wallets connect by QR. Allow the site domain for this id at cloud.reown.com. |
 | `marketAddress`, `registryAddress` | The two protocol contracts. Both are required. |
 | `deployBlock` | Where the contracts start, for anyone scanning events. |
 | `gpus`, `regions` | Labels a listing can name. Onchain they are `keccak256(label)`. Add freely, never rename. |

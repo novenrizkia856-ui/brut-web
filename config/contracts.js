@@ -51,6 +51,13 @@ window.CONTRACT_CONFIG = {
   gpus: ["A100-80GB", "A100-40GB", "H100-80GB", "H200-141GB", "B200", "L40S", "RTX-4090", "RTX-5090"],
   regions: ["us-east", "us-west", "eu-west", "eu-central", "eu-north", "asia-east", "asia-southeast", "oceania"],
 
+  /**
+   * WalletConnect project id, from cloud.reown.com. A public client id, not a
+   * secret. It adds a WalletConnect option, so phone wallets can connect by QR.
+   * The site's domain must be allowed for this id in the Reown dashboard.
+   */
+  walletConnectProjectId: "ff24e7c4e7d10744e3ccd080e4307cad",
+
   /* Optional outbound links. An empty value leaves the link inert. */
   links: {
     docs: "docs.html",

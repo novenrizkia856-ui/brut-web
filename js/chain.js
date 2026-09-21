@@ -390,6 +390,40 @@ if (typeof window !== "undefined") {
 
 let injected = null;
 
+const WC_ICON =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' rx='10' fill='%233B99FC'/%3E%3Cpath d='M12.3 15.6c4.3-4.2 11.2-4.2 15.4 0l.5.5c.2.2.2.6 0 .8l-1.8 1.7c-.1.1-.3.1-.4 0l-.7-.7c-3-2.9-7.8-2.9-10.8 0l-.8.7c-.1.1-.3.1-.4 0l-1.8-1.7c-.2-.2-.2-.6 0-.8l.8-.5Zm19 3.5 1.6 1.6c.2.2.2.6 0 .8l-7.2 7c-.2.2-.6.2-.8 0l-5.1-5c-.1-.1-.1-.1-.2 0l-5.1 5c-.2.2-.6.2-.8 0l-7.2-7c-.2-.2-.2-.6 0-.8l1.6-1.6c.2-.2.6-.2.8 0l5.1 5c.1.1.1.1.2 0l5.1-5c.2-.2.6-.2.8 0l5.1 5c.1.1.1.1.2 0l5.1-5c.2-.2.6-.2.8 0Z' fill='%23fff'/%3E%3C/svg%3E";
+
+/**
+ * WalletConnect, for phone wallets and anyone without a browser extension.
+ * The library is large, so it loads only when this option is picked, or when a
+ * previous WalletConnect session is being restored.
+ */
+const walletConnect = config.walletConnectProjectId
+  ? {
+      info: { uuid: "walletconnect", name: "WalletConnect", icon: WC_ICON },
+      provider: null,
+      async init() {
+        if (this.provider) return this.provider;
+        const { EthereumProvider } = await import("../vendor/walletconnect-2.25.0.min.js");
+        const origin = typeof location !== "undefined" ? location.origin : "";
+        this.provider = await EthereumProvider.init({
+          projectId: config.walletConnectProjectId,
+          optionalChains: [config.chainId],
+          rpcMap: { [config.chainId]: config.rpcUrl },
+          showQrModal: true,
+          qrModalOptions: { themeMode: "light", themeVariables: { "--wcm-accent-color": "#76b900", "--wcm-z-index": "1000" } },
+          metadata: {
+            name: "BRUT",
+            description: "Rent GPU compute. Escrow and settlement run onchain.",
+            url: origin,
+            icons: [`${origin}/assets/brand/mark.svg`],
+          },
+        });
+        return this.provider;
+      },
+    }
+  : null;
+
 export function wallets() {
   const list = [...found.values()];
   if (!list.length && typeof window !== "undefined" && window.ethereum) {
@@ -399,7 +433,25 @@ export function wallets() {
     }
     list.push(injected);
   }
+  if (walletConnect) list.push(walletConnect);
   return list;
+}
+
+/** Ready the wallet's EIP 1193 provider, loading WalletConnect if it is the one. */
+export async function prepare(wallet) {
+  if (wallet.init) await wallet.init();
+  return wallet.provider;
+}
+
+/** End the session where the wallet supports it; WalletConnect does. */
+export async function release(wallet) {
+  if (wallet && wallet.provider && typeof wallet.provider.disconnect === "function") {
+    try {
+      await wallet.provider.disconnect();
+    } catch {
+      /* already gone */
+    }
+  }
 }
 
 const hexChain = () => `0x${config.chainId.toString(16)}`;

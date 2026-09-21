@@ -26,6 +26,7 @@ export const config = {
   deployBlock: Number(RAW.deployBlock) || 0,
   tokenAddress: isAddress(RAW.tokenAddress) ? text(RAW.tokenAddress) : "",
   tokenLaunched: RAW.tokenLaunched === true,
+  walletConnectProjectId: /^[0-9a-f]{32}$/i.test(text(RAW.walletConnectProjectId)) ? text(RAW.walletConnectProjectId) : "",
   gpus: labels(RAW.gpus),
   regions: labels(RAW.regions),
   links: {
