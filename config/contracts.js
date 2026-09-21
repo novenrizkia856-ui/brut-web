@@ -22,13 +22,13 @@ window.CONTRACT_CONFIG = {
   currency: { name: "Ether", symbol: "ETH", decimals: 18 },
 
   /* ComputeMarketplace: jobs, bids, escrow, verdicts, disputes, settlement. */
-  marketAddress: "",
+  marketAddress: "0xB2e3769E99a011f9e9D55AB72936B0760625157a",
 
   /* ProviderRegistry: listings, stake, collateral, hardware attestation. */
-  registryAddress: "",
+  registryAddress: "0x3139A2c1F791fb9A507e0E6c0b06815A99734536",
 
   /* Block the contracts were deployed in. */
-  deployBlock: 0,
+  deployBlock: 68641745,
 
   /**
    * BRUT token. The token is separate from the protocol contracts above, and
