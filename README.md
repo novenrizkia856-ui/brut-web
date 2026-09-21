@@ -26,8 +26,9 @@ machines, and BRUT coordinates the economic agreement around it.
 | `js/motion.js` | The job card folding away as the reader leaves the landing. |
 | `js/live.js` | The card's running trace and count up, the live scorecard, the first build checklist. |
 | `js/enter.js` | Plays the entrances the export authored but never switched on. |
-| `js/core.js` | The glass crystal, its links and the orbiting nodes, on one clock. |
-| `js/wireframe.js` | Pure solids, faces, rotation, projection and lighting. Covered by `test/`. |
+| `js/core.js` | The dithered GPU, its links and the orbiting nodes, on one clock. |
+| `js/dither.js` | The GPU model, a small z buffered rasteriser, Bayer dither and part outlines. Covered by `test/`. |
+| `js/geometry.js` | Rotation, face normals and lighting, shared by the above. |
 | `js/accordion.js` | The four proof points and their progress rails. |
 | `js/nav-tone.js` | Recolours the fixed header over light and dark sections. |
 | `js/contract-bar.js` | The token address bar at the top of the landing page. |
@@ -38,7 +39,8 @@ machines, and BRUT coordinates the economic agreement around it.
 | `js/config.js` | Reads `config/contracts.js` and answers "is this configured?". |
 | `config/contracts.js` | The only file to edit after a deployment. Stays outside any build. |
 | `content/docs/` | The documentation source, ordered by `SUMMARY.md`. |
-| `assets/` | Fonts and artwork, named by a hash of their own contents. |
+| `assets/` | Artwork, named by a hash of its own contents. |
+| `assets/fonts/` | Archivo and JetBrains Mono, Latin and Latin Extended subsets. |
 | `assets/brand/` | The BRUT mark, in ink and inverse. |
 | `assets/art/` | The hero chart, see `tools/make-hero-chart.py`. |
 | `reference-assets/` | The original export, kept only for diffing. Not shipped. |
@@ -61,8 +63,9 @@ export wrote for them.
 |---|---|
 | Canvas | `#f1f1f1` paper, `#fafafa` page, black stages for the dark sections |
 | Ink | `#070707`, softening to `#201d1e` and `#a1a1a1` |
-| Display type | BRUT Serif, the Bitter variable face, at the reference's clamps |
-| Body type | BRUT Sans, the DM Sans variable face |
+| Display type | BRUT Serif: Archivo held at 112% width, at the reference's sizes |
+| Body type | BRUT Sans: Archivo at normal width |
+| Figures | BRUT Mono: JetBrains Mono, for addresses, hashes and registry labels |
 | Stage | Drawn at 1440 x 841 and scaled to the viewport, see `js/scale.js` |
 | Card | 887 x 479, 30px radius, `inset 0 0 0 4px #000` |
 
@@ -90,8 +93,15 @@ The reference sells a trading product, so everything that said so is gone:
 - Every class name and custom property carrying the old brand was renamed.
 - The Gilroy face the export embedded is a commercial font, all rights
   reserved. It was only the `:root` fallback, so it was dropped rather than
-  shipped. The two faces that do the work are Bitter and DM Sans, both under
-  the SIL Open Font License.
+  shipped.
+- The client asked for new type, so Bitter and DM Sans gave way to Archivo, a
+  grotesque with a width axis, and JetBrains Mono. Both are under the SIL Open
+  Font License. The export's family names were kept, so nothing in the export
+  had to change: `BRUT Serif` now points at Archivo declared at a fixed 112%
+  width, and a variable font's axis is clamped to what its face declares, so
+  every display line gets the expanded cut. `BRUT Sans` is the same file at
+  normal width. One family, two widths, where there used to be a serif and a
+  sans.
 - The export shipped `maximum-scale=1, user-scalable=no`, which blocks pinch
   zoom. That is an accessibility defect rather than a design decision, so it
   was removed.
@@ -109,8 +119,8 @@ values the reference itself was holding:
 | Card contents | Bars breathe out of phase, a scan line sweeps, missed beats flash, pills float, figures count up |
 | Scorecard | A light turns around the frame, a highlight walks the rows, figures tick and flash |
 | First build | A light turns around the frame, the fan spins, the four rows check off in turn |
-| Evidence core | Lit glass icosahedron, glowing octahedron inside, a light walking its edges |
-| Evidence nodes | Ride one tilted ring around the core; each hop fires a pulse that makes a node flare |
+| Evidence core | A GPU package turning slowly, rendered as dithered square dots with part outlines |
+| Evidence nodes | Ride one tilted ring around the core; each beat the die flashes and a pixel flies to a node |
 | Scorecard rows | Enter staggered, on the delays the export already declared |
 | Trace cards | Cards, dots and connectors enter in sequence, same delays |
 | Boundaries cloud | Two dither layers drifting and panning against each other |
@@ -125,9 +135,19 @@ The scorecard figures are illustrative, as the section says, and stay near
 their printed values: jobs only climb, uptime wanders a tenth either way inside
 a fixed band, and the score follows the other two.
 
-The core and the nodes share one clock. Each time the light on the crystal
-finishes a hop it sends a pulse down a link, and the node it reaches flares,
-so the constellation reads as one system rather than six separate animations.
+The core and the nodes share one clock. Every beat the die flashes and sends
+a single square pixel down a hairline link, and the node it reaches picks up a
+hard white outline, so the constellation reads as one system.
+
+The core used to be a lit glass crystal with a violet glow. The client's note
+was that it felt machine made, and it did: a glowing solid with a halo is the
+stock picture. The page's own visual language is dither (the cloud behind the
+boundaries, the dot grid on the run cards, the dotted closing), so the core now
+speaks it. It is a GPU package, the thing BRUT actually rents, modelled as a
+dozen boxes, rasterised with a depth buffer, reduced to one bit per pixel with
+a 4 x 4 Bayer matrix and outlined where one face meets another. The dither is
+fixed to the pixel grid, so as the chip turns its tones crawl through the dots
+the way the cloud does. Nothing on it glows.
 
 The scorecard, trace and first build entrances were already fully authored in
 the export, keyframes and per element delays and all. What it had lost was the
@@ -146,11 +166,11 @@ captured empty, so `js/core.js` draws the evidence core itself.
 
 The browser preview often runs as a hidden document, where
 `requestAnimationFrame` never fires. `js/core.js` exports `activeField()` so the
-field can be stepped by hand with `frame(now)`, and `test/wireframe.test.mjs`
-covers the geometry and lighting: the solids and their faces, outward winding
-at every angle, that rotation moves the points, that the projection stays in
-bounds, that lighting falls off correctly, and that the travelling light only
-walks edges that meet.
+field can be stepped by hand with `frame(now)`, and `test/dither.test.mjs`
+covers the picture itself: boxes closed and wound outward, the nearest surface
+winning, faces turned away being dropped, the dither keeping each tone as the
+right share of dots, the die heartbeat touching only the die, and the chip
+staying inside its frame at every angle it turns through.
 
 ## Local development
 

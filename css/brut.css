@@ -94,7 +94,7 @@
 
 .brut-ca__value {
   overflow: hidden;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-family: "BRUT Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: calc(12px * var(--brut-ui-scale, 1));
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -375,10 +375,12 @@
   animation: none;
   will-change: left, top, transform, opacity;
 }
-.brut-proof-node__float { transition: box-shadow 0.4s ease, filter 0.4s ease; }
+.brut-proof-node__float { transition: outline-color 0.2s steps(2, end), filter 0.2s steps(2, end); outline: 1px solid transparent; outline-offset: 3px; }
+/* A node that has just received a pulse: a hard hairline and a brighter
+   icon, stepped rather than faded, to match the pixel it came from. */
 .brut-proof-node.is-hit .brut-proof-node__float {
-  filter: brightness(1.8);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7), 0 0 26px rgba(171, 85, 255, 0.75);
+  outline-color: #f2f2f2;
+  filter: brightness(1.9);
 }
 
 @media (prefers-reduced-motion: reduce) {
