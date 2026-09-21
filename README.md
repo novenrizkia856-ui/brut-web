@@ -32,10 +32,11 @@ machines, and BRUT coordinates the economic agreement around it.
 | `js/accordion.js` | The four proof points and their progress rails. |
 | `js/nav-tone.js` | Recolours the fixed header over light and dark sections. |
 | `js/contract-bar.js` | The token address bar at the top of the landing page. |
-| `js/quote.js` | Pure pricing and funding rules. Covered by `test/`. |
-| `js/app.js` | The app: provider list, job form, escrow, the run. |
-| `js/sample-registry.js` | Providers the app reads until a market contract exists. |
-| `js/wallet.js` | Injected wallet only. Hides itself when no wallet is present. |
+| `js/quote.js` | Pure pricing and sending rules, exact to the wei. Covered by `test/`. |
+| `js/chain.js` | ABIs, reads over the public RPC, wallet discovery, chain switching, error messages. |
+| `js/app.js` | The app: rent, provide, jobs and operator panels over the live contracts. |
+| `vendor/` | ethers 6.17.0, self hosted, with its licence. |
+| `tools/sync-contracts.mjs` | Copies a deployment's addresses into `config/contracts.js`. |
 | `js/config.js` | Reads `config/contracts.js` and answers "is this configured?". |
 | `config/contracts.js` | The only file to edit after a deployment. Stays outside any build. |
 | `content/docs/` | The documentation source, ordered by `SUMMARY.md`. |
@@ -197,69 +198,51 @@ That runs all three:
 
 ## Connecting the contracts
 
-Nothing in the site assumes a deployment. Every value degrades to static copy
-or to the sample registry, so the site is publishable today and becomes live
-the moment the addresses are filled in.
+The app runs entirely against the deployed contracts in `brut-contracts`:
+`ProviderRegistry` for listings and stake, `ComputeMarketplace` for jobs,
+escrow, verdicts and disputes. Reads use the public RPC, so anyone can browse
+without a wallet. Writes go through a browser wallet, found through EIP 6963,
+which the app asks to switch to the configured chain first.
 
-### 1. Fill in `config/contracts.js`
+### After a deploy
 
-```js
-window.CONTRACT_CONFIG = {
-  network: "Example Chain",
-  chainId: 1234,
-  rpcUrl: "https://rpc.example",
-  explorerUrl: "https://explorer.example",
-  marketAddress: "0x...",
-  tokenAddress: "",
-  tokenLaunched: false,
-  links: { docs: "docs.html", x: "" },
-  reads: [],
-};
+```bash
+node tools/sync-contracts.mjs
 ```
 
-What each field turns on:
+This copies `ComputeMarketplace`, `ProviderRegistry`, `deployBlock` and
+`chainId` from `../brut-contracts/deployments/4663.json` into
+`config/contracts.js`. Pass another deployment file to point elsewhere. Until
+the addresses are filled in, the app says the contracts are not configured.
 
 | Field | Effect |
 |---|---|
-| `network` | The name in the app's network strip. Empty reads "No contract configured". |
-| `chainId` | Shown beside the network name, and used for wallet sanity checks. |
-| `rpcUrl` | Required before any live read runs. |
-| `marketAddress` | The provider registry, job records and escrow. Enables live reads. |
-| `tokenAddress` | The token contract, shown in the bar at the top of the landing page. |
-| `tokenLaunched` | What reveals that address. False keeps the bar reading "Coming soon". |
-| `explorerUrl` | Makes provider addresses and the job record clickable. |
+| `network`, `chainId`, `rpcUrl`, `explorerUrl`, `currency` | The chain every read and write targets, and how a wallet adds it. |
+| `marketAddress`, `registryAddress` | The two protocol contracts. Both are required. |
+| `deployBlock` | Where the contracts start, for anyone scanning events. |
+| `gpus`, `regions` | Labels a listing can name. Onchain they are `keccak256(label)`. Add freely, never rename. |
+| `tokenAddress`, `tokenLaunched` | The separate token, shown in the bar at the top of the landing page. |
 | `links.x` | Enables the footer social link. Empty leaves it dimmed and inert. |
 
-### 2. The provider list
+### What the app does
 
-`js/app.js` calls `readProviders()`. While `marketAddress` and `rpcUrl` are
-empty it returns `js/sample-registry.js` and the app says so on screen. When
-the market contract exists, its provider read goes in that one function and
-nothing above it changes.
+| Panel | Who | What |
+|---|---|---|
+| Rent | Buyers | Hire a listed provider at its price, or post a job for bids with a budget. Escrow is funded in the same transaction. |
+| Provide | Providers | Register with stake, go online, update the listing, add or withdraw free stake, bid on open jobs. |
+| Jobs | Everyone | Every job with its evidence trail and exactly the actions open to the connected wallet: accept a bid, start, heartbeat, submit a result, dispute, settle, fail an expired job. |
+| Operate | Role holders | Verdicts and milestone payouts (verifier), dispute rulings (arbitrator), hardware attestation (attestor), pause (pauser). Hidden from everyone else. |
 
-Until then, funding runs as a local walkthrough: the app steps a job from
-funded escrow through the heartbeat and the output hash to settlement, with
-each line carrying the label that says how strongly it is backed. It never
-builds, signs or sends a transaction.
+Workload and result references are hashed before they go onchain. The buyer's
+own browser remembers the plain reference for its jobs, and anyone handed a
+reference can check it against a job's hash on the job page.
 
-### 3. The token bar
+### The token bar
 
 The token is separate from the protocol contracts, so it gets its own line at
-the top of the landing page rather than a slot in the footer. It reads
-"Coming soon" until `tokenLaunched` is true, whatever `tokenAddress` holds.
-That split exists so the address can be filled in and checked ahead of time,
-and launch is then a one word edit on the deployed site with no rebuild.
-
-Once live the bar shows the address, shortened under 768px with the full value
-on hover, a copy button, and a link to the explorer when `explorerUrl` is set.
-
-### 4. Contracts still to build
-
-`brut-contracts` does not exist yet. The two day scope in
-`content/docs/two-day-mvp-scope.md` is the shortest path to a live site:
-provider registration with optional stake, job posting, funded escrow with
-final release, heartbeat and output hash verification, and the
-`Queued -> Running -> Completed | Failed` state flow.
+the top of the landing page. It reads "Coming soon" until `tokenLaunched` is
+true, whatever `tokenAddress` holds, so the address can be checked ahead of
+time and launch is a one word edit.
 
 ## Deployment
 

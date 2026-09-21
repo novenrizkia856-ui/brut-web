@@ -1,58 +1,87 @@
 /**
- * Job pricing and the rules that decide whether a job can be funded.
+ * Job pricing and the rules that decide whether a job can be sent.
  *
  * Pure, so the same code answers the form on screen and the tests in test/.
- * Nothing here touches the DOM, the config or the chain.
- */
-
-/** @typedef {{id:string,gpu:string,free:number,rate:number}} Provider */
-/** @typedef {{gpu:string,count:number,hours:number,image:string,budget:number}} Request */
-
-/**
- * What the job costs. A request with no provider still has GPU hours, so the
- * form can show them before anyone is picked.
+ * Amounts are wei as BigInt, exactly as the contract computes them, so the
+ * value a wallet is asked to send always equals what createJob expects.
  *
- * @param {Request} request
- * @param {Provider|null} provider
+ * The limits mirror ComputeMarketplace._checkShape and _checkBidder.
  */
-export function price(request, provider) {
-  const count = Math.max(1, Math.floor(Number(request.count) || 1));
-  const hours = Math.max(1, Math.floor(Number(request.hours) || 1));
-  const gpuHours = count * hours;
-  const rate = provider ? Number(provider.rate) || 0 : 0;
-  return { count, hours, gpuHours, rate, total: round2(gpuHours * rate) };
+
+export const MAX_DURATION_HOURS = 720;
+export const MAX_MILESTONES = 10;
+const UINT128_MAX = (1n << 128n) - 1n;
+
+const whole = (value, fallback = 0) => {
+  const n = Math.floor(Number(value));
+  return Number.isFinite(n) ? n : fallback;
+};
+
+/** price per GPU hour × GPUs × hours, in wei. */
+export function cost(pricePerGpuHour, gpuCount, durationHours) {
+  const price = BigInt(pricePerGpuHour || 0);
+  return price * BigInt(Math.max(0, whole(gpuCount))) * BigInt(Math.max(0, whole(durationHours)));
 }
 
 /**
- * Why this job cannot be funded, or "" when it can.
- *
- * The order matters: it is the order a person fills the form in, so the
- * message always points at the next thing to fix rather than the last.
- *
- * @param {Request} request
- * @param {Provider|null} provider
+ * Why the shape of a job is invalid, or "" when the contract will accept it.
+ * The order is the order a person fills the form in.
  */
-export function blocker(request, provider) {
-  if (!provider) return "Select a provider before funding.";
-
-  const { count, total } = price(request, provider);
-
-  if (provider.gpu !== request.gpu) {
-    return `Provider ${provider.id} does not offer that GPU.`;
-  }
-  if (count > provider.free) {
-    return `Provider ${provider.id} has ${provider.free} free.`;
-  }
-  if (!String(request.image || "").trim()) {
-    return "Add a container image or script reference.";
-  }
-  if (total > Number(request.budget)) {
-    return `The job costs $${total.toFixed(2)}, over your limit.`;
-  }
+export function shapeProblem({ gpuCount, durationHours, milestones, workload }) {
+  const count = whole(gpuCount);
+  const hours = whole(durationHours);
+  const parts = whole(milestones);
+  if (count < 1) return "Ask for at least one GPU.";
+  if (hours < 1) return "Run the job for at least one hour.";
+  if (hours > MAX_DURATION_HOURS) return `A job can run at most ${MAX_DURATION_HOURS} hours.`;
+  if (parts < 1 || parts > MAX_MILESTONES) return `Split payment into 1 to ${MAX_MILESTONES} milestones.`;
+  if (!String(workload || "").trim()) return "Add a container image or script reference.";
   return "";
 }
 
-/** Money is compared and displayed at two decimals, so round before both. */
-function round2(n) {
-  return Math.round(n * 100) / 100;
+/**
+ * Why a direct hire of this provider cannot be sent, or "".
+ *
+ * @param {{gpuCount:number,durationHours:number,milestones:number,workload:string,requireAttestation:boolean}} request
+ * @param {{gpuId:string,gpuCount:number,pricePerGpuHour:bigint,eligible:boolean,attested:boolean,address:string}|null} provider
+ * @param {string} account the connected wallet, lower or mixed case
+ */
+export function hireProblem(request, provider, account = "") {
+  if (!provider) return "Select a provider before funding.";
+  if (!provider.eligible) return "That provider is not taking jobs right now.";
+  if (account && provider.address.toLowerCase() === account.toLowerCase()) return "You cannot hire your own listing.";
+  if (whole(request.gpuCount) > provider.gpuCount) return `That provider lists ${provider.gpuCount} GPUs.`;
+  if (request.requireAttestation && !provider.attested) return "That provider has no hardware attestation yet.";
+  const shape = shapeProblem(request);
+  if (shape) return shape;
+  if (cost(provider.pricePerGpuHour, request.gpuCount, request.durationHours) > UINT128_MAX) return "That job is too large.";
+  return "";
+}
+
+/**
+ * Why an open job cannot be posted, or "".
+ *
+ * @param {{gpuCount:number,durationHours:number,milestones:number,workload:string,gpu:string,maxPrice:bigint,biddingHours:number}} request
+ * @param {number} maxBiddingSeconds params.maxBiddingPeriod
+ */
+export function postProblem(request, maxBiddingSeconds) {
+  if (!request.gpu) return "Choose the GPU the job needs.";
+  const shape = shapeProblem(request);
+  if (shape) return shape;
+  if (!request.maxPrice || request.maxPrice <= 0n) return "Set the most you will pay per GPU hour.";
+  const seconds = whole(request.biddingHours) * 3600;
+  if (seconds < 3600) return "Keep bidding open for at least one hour.";
+  if (maxBiddingSeconds && seconds > maxBiddingSeconds) {
+    return `Bidding can stay open at most ${Math.floor(maxBiddingSeconds / 3600)} hours.`;
+  }
+  if (cost(request.maxPrice, request.gpuCount, request.durationHours) > UINT128_MAX) return "That job is too large.";
+  return "";
+}
+
+/** Payment released per milestone, the last one taking the remainder, in wei. */
+export function tranches(funded, milestones) {
+  const total = BigInt(funded);
+  const parts = Math.max(1, whole(milestones, 1));
+  const each = total / BigInt(parts);
+  return Array.from({ length: parts }, (_, i) => (i === parts - 1 ? total - each * BigInt(parts - 1) : each));
 }
