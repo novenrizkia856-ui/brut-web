@@ -405,42 +405,26 @@
 .brut-ca { color: #070707; }
 .brut-hero__brand-mark { filter: invert(1); }
 
-/* Token state now reads as the brand's subheading. The live address keeps its
-   copy and explorer controls, while the pre-launch state stays informational. */
-.brut-hero__identity {
-  display: grid;
-  gap: 3px;
-  align-items: start;
-}
-
-.brut-hero__identity .brut-ca {
+/* Token state is the main message's subheading, immediately below "Built for
+   buyers and providers". The launch controls still appear when configured. */
+.brut-built__intro .brut-ca {
   position: static;
-  max-width: min(58vw, 720px);
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
+  z-index: auto;
+  width: fit-content;
+  max-width: min(100%, 720px);
+  margin: -8px auto 22px;
+  color: #070707 !important;
   transform: none;
 }
 
-.brut-hero__identity .brut-ca__label,
-.brut-hero__identity .brut-ca__value {
-  font-size: 9px;
-  line-height: 1.1;
-}
-
-.brut-hero__identity .brut-ca__label { opacity: 0.48; }
-.brut-hero__identity .brut-ca[data-state="soon"] .brut-ca__copy { display: none; }
-.brut-hero__identity .brut-ca__copy,
-.brut-hero__identity .brut-ca__explorer { padding: 2px 6px; font-size: 9px; }
+.brut-built__intro .brut-ca[data-state="soon"] .brut-ca__copy { display: none; }
 
 @media (max-width: 767px) {
-  .brut-hero__identity .brut-ca { max-width: 54vw; gap: 4px; padding: 0; }
-  .brut-hero__identity .brut-ca__label,
-  .brut-hero__identity .brut-ca__value { font-size: 8px; }
+  .brut-built__intro .brut-ca {
+    top: auto;
+    max-width: calc(100vw - 40px);
+    margin: -8px auto 20px;
+  }
 }
 
 /* The reference switches its fixed 1440px canvas at 767px. At tablet and

@@ -57,8 +57,8 @@ the reference's; the product inside them is BRUT.
 The one structural change the client asked for: the reference hero is gone and
 the overview section opens the page. What is left of `.brut-hero` is the fixed
 chrome that lived beside the stage, collapsed to no height. The brand and
-section nav keep the export's rules; token state sits beneath the brand as a
-compact subheading.
+section nav keep the export's rules; token state sits beneath the landing
+heading as a compact subheading.
 
 | | Value |
 |---|---|
@@ -241,7 +241,7 @@ reference can check it against a job's hash on the job page.
 ### The token subheading
 
 The token is separate from the protocol contracts, so its state sits beneath
-the BRUT wordmark. It reads "Coming soon" until `tokenLaunched` is true,
+the landing heading. It reads "Coming soon" until `tokenLaunched` is true,
 whatever `tokenAddress` holds. That lets the address be checked ahead of time,
 and launch stays a one word edit.
 

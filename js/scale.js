@@ -65,11 +65,10 @@ function apply() {
     section.style.setProperty("--brut-bc-stage-scale", round(stage));
   }
 
-  /* The brand, the section nav and the contract bar are fixed and stack to a
-     different height at each breakpoint. The landing starts below whichever
-     of them reaches lowest, so it is measured here rather than guessed. */
+  /* The brand and section nav are fixed and stack differently at each
+     breakpoint. The landing starts below whichever one reaches lowest. */
   let chrome = 0;
-  for (const el of document.querySelectorAll(".brut-hero__header, .brut-hero__nav, [data-ca-bar]")) {
+  for (const el of document.querySelectorAll(".brut-hero__header, .brut-hero__nav")) {
     chrome = Math.max(chrome, el.getBoundingClientRect().bottom);
   }
   if (chrome) document.documentElement.style.setProperty("--brut-chrome-bottom", `${Math.ceil(chrome)}px`);

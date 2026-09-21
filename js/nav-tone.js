@@ -1,11 +1,10 @@
 /**
  * Header tone.
  *
- * The brand, the section nav and the contract bar are all fixed, so they stay
- * on screen over sections that are black and sections that are paper. Each
- * section already declares which it is with data-nav-tone; the reference build
- * read that and recoloured the header, and the export lost the script that did
- * it, leaving white text over the light sections.
+ * The brand and section nav are fixed, so they stay on screen over sections
+ * that are black and sections that are paper. Each section declares which it
+ * is with data-nav-tone; the reference build read that and recoloured the
+ * header, and the export lost the script that did it.
  *
  * Everything up there is drawn in currentColor or a mix of it, so setting one
  * colour carries the pill backings and borders with it. The brand mark is a
@@ -26,7 +25,6 @@ function start() {
   const chrome = [
     document.querySelector(".brut-hero__header"),
     document.querySelector(".brut-hero__nav"),
-    document.querySelector("[data-ca-bar]"),
   ].filter(Boolean);
   const mark = document.querySelector(".brut-hero__brand-mark");
   const zones = [...document.querySelectorAll("[data-nav-tone]")];

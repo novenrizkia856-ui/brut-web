@@ -50,17 +50,11 @@ function start() {
   const bar = document.querySelector("[data-ca-bar]");
   if (!bar) return;
 
-  /* The pre-launch token note belongs to the brand as a subheading, not as a
-     third fixed navigation row. Keep the same element for launch day so the
-     address, copy action and explorer link still switch on from config. */
-  const header = document.querySelector(".brut-hero__header");
-  const brand = header && header.querySelector(".brut-hero__brand");
-  if (header && brand && !header.querySelector(".brut-hero__identity")) {
-    const identity = document.createElement("div");
-    identity.className = "brut-hero__identity";
-    header.insertBefore(identity, brand);
-    identity.append(brand, bar);
-  }
+  /* Keep token state with the landing message: directly below the main
+     heading and above its supporting copy. The same element remains ready to
+     expose the address, copy action and explorer link on launch day. */
+  const heading = document.querySelector(".brut-built__heading");
+  if (heading) heading.insertAdjacentElement("afterend", bar);
 
   const value = bar.querySelector("[data-ca-text]");
   const button = bar.querySelector("[data-ca-copy]");
