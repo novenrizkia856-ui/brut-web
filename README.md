@@ -23,10 +23,11 @@ machines, and BRUT coordinates the economic agreement around it.
 | `css/app.css` | The app only. |
 | `css/docs.css` | The docs page only. |
 | `js/scale.js` | Puts back the stage scaling the export froze at one window size. |
-| `js/motion.js` | The job card laying back as the reader leaves the landing. |
+| `js/motion.js` | The job card folding away as the reader leaves the landing. |
+| `js/live.js` | The card's running trace and count up, the live scorecard, the first build checklist. |
 | `js/enter.js` | Plays the entrances the export authored but never switched on. |
-| `js/core.js` | Draws the evidence core. Geometry lives in `js/wireframe.js`. |
-| `js/wireframe.js` | Pure solids, rotation and projection. Covered by `test/`. |
+| `js/core.js` | The glass crystal, its links and the orbiting nodes, on one clock. |
+| `js/wireframe.js` | Pure solids, faces, rotation, projection and lighting. Covered by `test/`. |
 | `js/accordion.js` | The four proof points and their progress rails. |
 | `js/nav-tone.js` | Recolours the fixed header over light and dark sections. |
 | `js/contract-bar.js` | The token address bar at the top of the landing page. |
@@ -103,18 +104,30 @@ values the reference itself was holding:
 
 | Element | Behaviour |
 |---|---|
-| Job card | Opens flat, then lies back to `rotateX(72deg) scale(0.62)` as the reader scrolls on |
-| State pills | Go with the card face they belong to |
-| Proof points | Advance every 7 seconds, with the rail as the progress bar |
-| Evidence core | Turning icosahedron, counter turning octahedron, one light walking an edge at a time |
+| Landing | Headline, then its sub header, clear of the fixed chrome by a measured gap |
+| Job card | Holds flat until fully seen, then folds back edge on, shrinking and blurring |
+| Card contents | Bars breathe out of phase, a scan line sweeps, missed beats flash, pills float, figures count up |
+| Scorecard | A light turns around the frame, a highlight walks the rows, figures tick and flash |
+| First build | A light turns around the frame, the fan spins, the four rows check off in turn |
+| Evidence core | Lit glass icosahedron, glowing octahedron inside, a light walking its edges |
+| Evidence nodes | Ride one tilted ring around the core; each hop fires a pulse that makes a node flare |
 | Scorecard rows | Enter staggered, on the delays the export already declared |
 | Trace cards | Cards, dots and connectors enter in sequence, same delays |
-| First build panel | Slides in with its four rows staggered behind it |
 | Boundaries cloud | Two dither layers drifting and panning against each other |
 
-The card runs the reference transform backwards. The reference tilted a card
-up into place as its section arrived; here the card is the first thing on
-screen, so it starts flat and closes itself as the reader moves on.
+The fold holds until the whole card has been seen. On a short laptop screen
+the card's figures sit below the fold, so closing it straight away would hide
+them; the hold stretches to cover that and is barely there on a tall screen.
+The card stays opaque for most of the fold and fades only at the end, since
+fading early would hide the movement itself.
+
+The scorecard figures are illustrative, as the section says, and stay near
+their printed values: jobs only climb, uptime wanders a tenth either way inside
+a fixed band, and the score follows the other two.
+
+The core and the nodes share one clock. Each time the light on the crystal
+finishes a hop it sends a pulse down a link, and the node it reaches flares,
+so the constellation reads as one system rather than six separate animations.
 
 The scorecard, trace and first build entrances were already fully authored in
 the export, keyframes and per element delays and all. What it had lost was the
@@ -131,11 +144,13 @@ their last frame as a background image, so the dither and dot textures survive
 as stills and now drift under their own CSS animation. The crystal canvas was
 captured empty, so `js/core.js` draws the evidence core itself.
 
-The browser preview runs as a hidden document, where `requestAnimationFrame`
-never fires, so the core cannot be verified on screen. `test/wireframe.test.mjs`
-covers it instead: the solids, that rotation moves the points, that the
-projection stays inside the canvas at every angle, and that the travelling
-light only ever walks edges that meet.
+The browser preview often runs as a hidden document, where
+`requestAnimationFrame` never fires. `js/core.js` exports `activeField()` so the
+field can be stepped by hand with `frame(now)`, and `test/wireframe.test.mjs`
+covers the geometry and lighting: the solids and their faces, outward winding
+at every angle, that rotation moves the points, that the projection stays in
+bounds, that lighting falls off correctly, and that the travelling light only
+walks edges that meet.
 
 ## Local development
 

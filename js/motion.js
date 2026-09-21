@@ -2,61 +2,76 @@
  * Scroll motion.
  *
  * The overview is the landing, so the job card is the first thing on screen
- * and it arrives already flat. The reference played this transform the other
- * way, tilting a card up into place as its section arrived. Here it runs in
- * reverse: the card lies back and lifts away as the reader scrolls on, so the
- * section closes itself instead of introducing itself.
+ * and it arrives flat. As the reader scrolls on, the card folds back on its
+ * top edge until it is edge on, shrinking and blurring as it goes, and the
+ * headline block lifts away above it. The section closes itself.
+ *
+ * The fold is the point, so the card stays opaque for most of it and only
+ * fades in the last stretch. Fading early would hide the very movement the
+ * reader is meant to see.
  *
  * Nothing here is required for the page to be readable. Under
- * prefers-reduced-motion the card stays flat and no scroll listener is
+ * prefers-reduced-motion everything stays in place and no scroll listener is
  * attached.
  */
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const clamp = (n, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, n));
 const mix = (a, b, t) => a + (b - a) * t;
-const easeOut = (t) => 1 - (1 - t) ** 3;
+const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 
 /* ------------------------------------------------------------ the card ---
- * q is how present the card is: 1 flat and facing the reader, 0 laid back
- * and gone. The angle and scale are the reference's own values, played from
- * the other end.
+ * c is how far the card has closed: 0 flat and facing the reader, 1 folded
+ * edge on and gone.
  */
-function drawCard(card, q) {
-  const eased = easeOut(clamp(q));
+function drawCard(card, c) {
+  const t = easeInOut(clamp(c));
 
-  card.style.opacity = mix(0, 1, eased).toFixed(3);
+  card.style.opacity = (1 - clamp((c - 0.62) / 0.38)).toFixed(3);
+  card.style.filter = t > 0.001 ? `blur(${(t * 10).toFixed(2)}px)` : "";
   card.style.transform =
-    `translateY(${mix(-210, 0, eased).toFixed(2)}px) ` +
-    `rotateX(${mix(72, 0, eased).toFixed(3)}deg) ` +
-    `scale(${mix(0.62, 1, eased).toFixed(4)})`;
+    `translateY(${mix(0, -150, t).toFixed(2)}px) ` +
+    `rotateX(${mix(0, 88, t).toFixed(3)}deg) ` +
+    `scale(${mix(1, 0.5, t).toFixed(4)})`;
 
   /* The state pills belong to the card face, so they go with it. */
-  const facing = eased > 0.62;
+  const facing = t < 0.35;
   for (const tag of card.querySelectorAll(".brut-job-card__tag")) {
     tag.style.opacity = facing ? "1" : "0";
     tag.style.transform = facing ? "scale(1)" : "scale(.4)";
   }
 }
 
+/* The headline and its sub header rise and clear ahead of the card. */
+function drawIntro(intro, c) {
+  const t = clamp(c / 0.7);
+  intro.style.opacity = (1 - t).toFixed(3);
+  intro.style.transform = `translateY(${(-90 * easeInOut(t)).toFixed(2)}px)`;
+}
+
 /**
- * How far the reader has moved past the landing section.
+ * How far the reader has gone past the landing, 0 to 1.
  *
- * The card holds its face for a moment first, so a small scroll does not
- * immediately start closing the thing the reader just arrived at.
+ * The fold waits until the whole card has been seen flat. On a tall screen
+ * that is almost at once; on a short laptop screen the card's figures sit
+ * below the fold, so the hold stretches until they have scrolled into view.
+ * Then about two thirds of a screen of scrolling closes it.
+ *
+ * @param {number} cardBottom where the card ends with the page at the top
  */
-function departure(section) {
-  const box = section.getBoundingClientRect();
-  const hold = window.innerHeight * 0.12;
-  const travel = Math.max(1, box.height * 0.7);
-  return clamp((-box.top - hold) / travel);
+function departure(cardBottom = 0) {
+  const seen = cardBottom - window.innerHeight + 40;
+  const hold = Math.max(window.innerHeight * 0.04, seen);
+  const travel = window.innerHeight * 0.65;
+  return clamp((window.scrollY - hold) / travel);
 }
 
 /* ----------------------------------------------------------- reveals -----
- * Blocks that ship with an inline start state and wait to be let in.
+ * The headline and sub header ship with an inline start state and are let in
+ * once, on load. After that the intro wrapper owns their motion.
  */
 function reveals() {
-  const items = [...document.querySelectorAll(".brut-built__description, .brut-built__heading")];
+  const items = [...document.querySelectorAll(".brut-built__heading, .brut-built__description")];
   for (const el of items) {
     el.style.transition = "opacity 900ms cubic-bezier(.22,.61,.36,1), transform 900ms cubic-bezier(.22,.61,.36,1)";
   }
@@ -76,7 +91,7 @@ function reveals() {
     }
   }, { rootMargin: "0px 0px -12% 0px" });
   items.forEach((el, i) => {
-    el.style.transitionDelay = `${i * 120}ms`;
+    el.style.transitionDelay = `${i * 140}ms`;
     seen.observe(el);
   });
 }
@@ -84,19 +99,32 @@ function reveals() {
 /* --------------------------------------------------------------- start ---- */
 function start() {
   const card = document.querySelector(".brut-built__visual");
-  const section = document.querySelector(".brut-built");
+  const intro = document.querySelector(".brut-built__intro");
   reveals();
-  if (!card || !section) return;
+  if (!card) return;
 
   if (REDUCED) {
-    drawCard(card, 1);
+    drawCard(card, 0);
     return;
   }
+
+  /* Where the card ends when nothing is folding it, read with the transform
+     cleared so a mid page reload does not measure a card already closing. */
+  let cardBottom = 0;
+  const measure = () => {
+    const kept = [card.style.transform, card.style.filter];
+    card.style.transform = "";
+    card.style.filter = "";
+    cardBottom = card.getBoundingClientRect().bottom + window.scrollY;
+    [card.style.transform, card.style.filter] = kept;
+  };
 
   let queued = false;
   const frame = () => {
     queued = false;
-    drawCard(card, 1 - departure(section));
+    const c = departure(cardBottom);
+    drawCard(card, c);
+    if (intro) drawIntro(intro, c);
   };
   const onScroll = () => {
     if (queued) return;
@@ -104,9 +132,15 @@ function start() {
     requestAnimationFrame(frame);
   };
 
+  measure();
   frame();
   addEventListener("scroll", onScroll, { passive: true });
-  addEventListener("resize", onScroll, { passive: true });
+  addEventListener("resize", () => {
+    measure();
+    onScroll();
+  }, { passive: true });
 }
 
 start();
+
+export { drawCard, departure };

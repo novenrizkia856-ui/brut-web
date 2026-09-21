@@ -111,3 +111,53 @@ test("the light never leaves the solid", () => {
     assert.ok(hop.edge >= 0 && hop.edge < edges.length);
   }
 });
+
+/* ------------------------------------------------------------ lighting -- */
+
+import { facesOf, rotate, normalOf, shade, LIGHT } from "../js/wireframe.js";
+
+test("the icosahedron has twenty faces, the octahedron eight", () => {
+  const ico = icosahedron();
+  const oct = octahedron();
+  assert.equal(facesOf(ico, edgesOf(ico)).length, 20);
+  assert.equal(facesOf(oct, edgesOf(oct)).length, 8);
+});
+
+test("every face is wound so its normal points outward", () => {
+  const points = icosahedron();
+  for (const [a, b, c] of facesOf(points, edgesOf(points))) {
+    const n = normalOf(points[a], points[b], points[c]);
+    const centre = [0, 1, 2].map((k) => (points[a][k] + points[b][k] + points[c][k]) / 3);
+    assert.ok(n[0] * centre[0] + n[1] * centre[1] + n[2] * centre[2] > 0);
+  }
+});
+
+test("winding survives rotation, so facing is right at every angle", () => {
+  const points = icosahedron();
+  const faces = facesOf(points, edgesOf(points));
+  for (let yaw = 0; yaw < Math.PI * 2; yaw += 0.7) {
+    const turned = points.map((p) => rotate(p, yaw, 0.4));
+    const facing = faces.filter(([a, b, c]) => normalOf(turned[a], turned[b], turned[c])[2] > 0);
+    /* a convex solid always shows roughly half its faces */
+    assert.ok(facing.length >= 8 && facing.length <= 12, `saw ${facing.length} faces`);
+  }
+});
+
+test("a face pointed at the light is brighter than one pointed away", () => {
+  const toward = shade(LIGHT);
+  const edgeOn = shade([1, 0, 0.01]);
+  assert.ok(toward.diffuse > edgeOn.diffuse);
+  assert.ok(toward.diffuse > 0.99);
+});
+
+test("faces turned from the viewer get no light at all", () => {
+  const back = shade([0, 0, -1]);
+  assert.equal(back.facing, false);
+  assert.equal(back.diffuse, 0);
+  assert.equal(back.specular, 0);
+});
+
+test("the highlight is tight: only faces near the mirror angle catch it", () => {
+  assert.ok(shade([0, 0, 1]).specular < 0.5);
+  assert.ok(shade([1, 0, 0.05]).specular < 0.01);
+});

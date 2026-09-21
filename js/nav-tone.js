@@ -39,14 +39,15 @@ function start() {
   function apply() {
     /* Later in the document wins, so a pinned stage lying over the section
        behind it reports the one actually on top. */
-    let tone = "dark";
+    let tone = "light";
     for (const zone of zones) if (crossing.has(zone)) tone = zone.dataset.navTone;
     if (tone === current) return;
     current = tone;
 
     const colour = tone === "light" ? LIGHT : DARK;
     for (const element of chrome) element.style.color = colour;
-    if (mark) mark.style.filter = tone === "light" ? "invert(1)" : "";
+    /* the stylesheet default is inverted for the paper landing */
+    if (mark) mark.style.filter = tone === "light" ? "invert(1)" : "none";
   }
 
   function observe() {

@@ -64,6 +64,15 @@ function apply() {
   for (const section of document.querySelectorAll(".brut-bc-boundaries, .brut-bc-protocol-screen, .brut-bc-closing")) {
     section.style.setProperty("--brut-bc-stage-scale", round(stage));
   }
+
+  /* The brand, the section nav and the contract bar are fixed and stack to a
+     different height at each breakpoint. The landing starts below whichever
+     of them reaches lowest, so it is measured here rather than guessed. */
+  let chrome = 0;
+  for (const el of document.querySelectorAll(".brut-hero__header, .brut-hero__nav, [data-ca-bar]")) {
+    chrome = Math.max(chrome, el.getBoundingClientRect().bottom);
+  }
+  if (chrome) document.documentElement.style.setProperty("--brut-chrome-bottom", `${Math.ceil(chrome)}px`);
 }
 
 apply();
