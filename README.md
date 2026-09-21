@@ -56,9 +56,9 @@ the reference's; the product inside them is BRUT.
 
 The one structural change the client asked for: the reference hero is gone and
 the overview section opens the page. What is left of `.brut-hero` is the fixed
-chrome that lived beside the stage rather than inside it, collapsed to no
-height, so the brand, the section nav and the contract bar keep the rules the
-export wrote for them.
+chrome that lived beside the stage, collapsed to no height. The brand and
+section nav keep the export's rules; token state sits beneath the brand as a
+compact subheading.
 
 | | Value |
 |---|---|
@@ -238,12 +238,12 @@ Workload and result references are hashed before they go onchain. The buyer's
 own browser remembers the plain reference for its jobs, and anyone handed a
 reference can check it against a job's hash on the job page.
 
-### The token bar
+### The token subheading
 
-The token is separate from the protocol contracts, so it gets its own line at
-the top of the landing page. It reads "Coming soon" until `tokenLaunched` is
-true, whatever `tokenAddress` holds, so the address can be checked ahead of
-time and launch is a one word edit.
+The token is separate from the protocol contracts, so its state sits beneath
+the BRUT wordmark. It reads "Coming soon" until `tokenLaunched` is true,
+whatever `tokenAddress` holds. That lets the address be checked ahead of time,
+and launch stays a one word edit.
 
 ## Deployment
 

@@ -405,6 +405,161 @@
 .brut-ca { color: #070707; }
 .brut-hero__brand-mark { filter: invert(1); }
 
+/* Token state now reads as the brand's subheading. The live address keeps its
+   copy and explorer controls, while the pre-launch state stays informational. */
+.brut-hero__identity {
+  display: grid;
+  gap: 3px;
+  align-items: start;
+}
+
+.brut-hero__identity .brut-ca {
+  position: static;
+  max-width: min(58vw, 720px);
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  transform: none;
+}
+
+.brut-hero__identity .brut-ca__label,
+.brut-hero__identity .brut-ca__value {
+  font-size: 9px;
+  line-height: 1.1;
+}
+
+.brut-hero__identity .brut-ca__label { opacity: 0.48; }
+.brut-hero__identity .brut-ca[data-state="soon"] .brut-ca__copy { display: none; }
+.brut-hero__identity .brut-ca__copy,
+.brut-hero__identity .brut-ca__explorer { padding: 2px 6px; font-size: 9px; }
+
+@media (max-width: 767px) {
+  .brut-hero__identity .brut-ca { max-width: 54vw; gap: 4px; padding: 0; }
+  .brut-hero__identity .brut-ca__label,
+  .brut-hero__identity .brut-ca__value { font-size: 8px; }
+}
+
+/* The reference switches its fixed 1440px canvas at 767px. At tablet and
+   compact-laptop widths that clips Boundaries and the following stages.
+   Keep their fluid composition until the canvas content safely fits again. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .brut-bc-boundaries,
+  .brut-bc-protocol-screen,
+  .brut-bc-closing { width: 100%; height: auto; min-height: 100svh; }
+
+  .brut-bc-boundaries {
+    display: flex;
+    align-items: center;
+    padding: 118px clamp(28px, 6vw, 60px) 82px;
+  }
+  .brut-bc-boundaries__bottom-fade { height: 42%; }
+  .brut-bc-boundaries__stage,
+  .brut-bc-protocol-stage,
+  .brut-bc-closing__stage {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: 100%;
+    height: auto;
+    margin: 0;
+    transform: none;
+  }
+  .brut-bc-boundaries__intro {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: min(100%, 620px);
+    margin: 0 auto;
+    font-size: 16px;
+    line-height: 1.45;
+  }
+  .brut-bc-boundaries__heading {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: min(100%, 720px);
+    margin: 26px auto 54px !important;
+    font-size: clamp(38px, 6vw, 54px);
+    line-height: 1.12;
+  }
+  .brut-bc-boundaries__columns {
+    position: relative;
+    inset: auto;
+    display: grid;
+    width: min(100%, 760px);
+    height: auto;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 42px 32px;
+    margin: 0 auto;
+  }
+  .brut-bc-boundaries__columns > li {
+    position: relative;
+    inset: auto;
+    width: auto;
+    height: auto;
+    min-height: 190px;
+    padding-left: 22px;
+  }
+  .brut-bc-boundaries__divider { top: 0; left: 0; height: 100%; }
+  .brut-bc-boundaries__column { position: relative; top: auto; left: auto; width: auto; }
+  .brut-bc-boundaries__icon { width: 34px; height: 34px; }
+  .brut-bc-boundaries__icon img { max-width: 34px; max-height: 34px; }
+  .brut-bc-boundaries__column h3 { width: auto; margin-top: 38px; font-size: 19px; line-height: 1.08; }
+  .brut-bc-boundaries__column p { width: auto; margin-top: 17px; font-size: 11px; line-height: 1.4; }
+
+  .brut-bc-protocol-track { height: auto; }
+  .brut-bc-protocol-screen { position: relative; display: flex; align-items: center; padding: 100px clamp(28px, 6vw, 60px); }
+  .brut-bc-protocol-stage { display: grid; gap: 46px; }
+  .brut-bc-protocol-copy__eyebrow,
+  .brut-bc-protocol-copy > h2,
+  .brut-bc-protocol-copy > p { position: relative; top: auto; left: auto; width: min(100%, 680px); }
+  .brut-bc-protocol-copy { display: grid; gap: 20px; }
+  .brut-bc-protocol-copy__eyebrow { font-size: 15px; }
+  .brut-bc-protocol-copy > h2 { font-size: clamp(40px, 7vw, 62px); line-height: 1.02; }
+  .brut-bc-protocol-copy > p { font-size: 15px; }
+  .brut-bc-protocol-panel { position: relative; top: auto; left: auto; width: 100%; height: auto; min-height: 360px; border-radius: 9px; }
+  .brut-bc-protocol-panel > article {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: calc(100% - 28px);
+    height: auto;
+    min-height: 340px;
+    margin: 20px 0 0 14px;
+    padding: 62px 18px 48px;
+    border-radius: 15px;
+  }
+  .brut-bc-protocol-panel__logo { top: 16px; left: 18px; }
+  .brut-bc-protocol-panel__header { position: relative; top: auto; left: auto; }
+  .brut-bc-protocol-panel ul { position: relative; top: auto; left: auto; width: 100%; margin-top: 24px; }
+  .brut-bc-protocol-row { width: 100%; min-height: 46px; height: auto; padding: 13px 16px; line-height: 1.2; white-space: normal; }
+  .brut-bc-protocol-panel__disclaimer,
+  .brut-bc-protocol-panel__version { top: auto; bottom: 18px; font-size: 9px; line-height: 1.2; white-space: normal; }
+  .brut-bc-protocol-panel__disclaimer { left: 18px; width: calc(100% - 116px); }
+  .brut-bc-protocol-panel__version { right: 18px; left: auto; }
+
+  .brut-bc-closing-track { margin-top: 0; }
+  .brut-bc-closing { position: relative; display: flex; align-items: center; padding: 96px clamp(28px, 6vw, 60px) 34px; }
+  .brut-bc-closing__stage { display: grid; justify-items: center; }
+  .brut-bc-closing__paragraph,
+  .brut-bc-closing__stage > h2,
+  .brut-bc-closing__status,
+  .brut-bc-closing__footer { position: relative; top: auto; left: auto; }
+  .brut-bc-closing__paragraph { width: min(100%, 560px); font-size: 25px; line-height: 1.12; }
+  .brut-bc-closing__stage > h2 { width: 100%; margin-top: 38px; font-size: clamp(54px, 10vw, 84px); line-height: 1; white-space: normal; }
+  .brut-bc-closing__status { margin-top: 32px; }
+  .brut-bc-closing__footer { width: 100%; height: auto; min-height: 230px; margin-top: 84px; border-radius: 11px; }
+  .brut-bc-closing__brand { top: 30px; left: 28px; }
+  .brut-bc-closing__footer-links { position: relative; display: grid; gap: 16px; padding: 96px 28px 30px; }
+  .brut-bc-closing__footer .brut-bc-closing__footer-links > a { position: relative; top: auto; left: auto; width: fit-content; }
+  .brut-bc-closing__tagline-shadow,
+  .brut-bc-closing__spacer { display: none; }
+}
+
 /*
  * Font variables, set outright.
  *

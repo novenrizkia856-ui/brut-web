@@ -66,9 +66,20 @@ function mermaid(src) {
   return `<div class="doc-flow"><ol class="doc-flow__list">${steps}</ol>${note}</div>`;
 }
 
-function render(md) {
+const headingSlug = (text) =>
+  text
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[^a-zA-Z0-9\s-]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/-+/g, "-");
+
+function render(md, pageSlug) {
   const lines = md.split("\n");
   const html = [];
+  const headingIds = new Map();
   let i = 0;
 
   while (i < lines.length) {
@@ -95,10 +106,16 @@ function render(md) {
 
     const heading = line.match(/^(#{1,4})\s+(.*)$/);
     if (heading) {
-      // The h1 is the document title and is emitted by the caller.
+      // The h1 is the document title and is emitted by the caller. Markdown
+      // subheads move down one level so each generated page section keeps a
+      // valid heading hierarchy under its h2 title.
       if (heading[1].length > 1) {
-        const level = heading[1].length;
-        html.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+        const level = Math.min(6, heading[1].length + 1);
+        const base = `${pageSlug}-${headingSlug(heading[2]) || "section"}`;
+        const count = headingIds.get(base) || 0;
+        const id = count ? `${base}-${count + 1}` : base;
+        headingIds.set(base, count + 1);
+        html.push(`<h${level} id="${id}">${inline(heading[2])}</h${level}>`);
       }
       i += 1;
       continue;
@@ -194,7 +211,7 @@ const nav = pages
 
 const sections = pages
   .map((p) => {
-    const body = render(readFileSync(join(docsDir, p.file), "utf8"));
+    const body = render(readFileSync(join(docsDir, p.file), "utf8"), p.slug);
     return `<section class="doc" id="${p.slug}" aria-labelledby="${p.slug}-title">
             <h2 class="doc__title" id="${p.slug}-title">${esc(p.title)}</h2>
             ${body}
@@ -202,7 +219,8 @@ const sections = pages
   })
   .join("\n\n          ");
 
-// The shell matches app.html: same fonts, same tokens, same quiet canvas.
+// The shell keeps BRUT's type and palette, with the familiar documentation
+// pattern of a browse rail, a focused reading column and an in-page outline.
 const page = `<!doctype html>
 <html lang="en">
 <head>
@@ -241,7 +259,18 @@ const page = `<!doctype html>
 
   <div class="container docs-shell">
     <details class="docs-side" id="docs-toc" open>
-      <summary class="docs-side__label">Contents</summary>
+      <summary class="docs-side__label">Browse documentation</summary>
+      <div class="docs-side__head" aria-hidden="true">
+        <span>Documentation</span>
+        <span>v0.1</span>
+      </div>
+      <label class="docs-search">
+        <span class="sr-only">Filter documentation</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m16 16 4 4"></path></svg>
+        <input id="docs-search" type="search" placeholder="Search docs" autocomplete="off">
+        <kbd>/</kbd>
+      </label>
+      <p class="sr-only" id="docs-search-status" aria-live="polite"></p>
       <ol class="docs-side__list">
             ${nav}
       </ol>
@@ -249,13 +278,25 @@ const page = `<!doctype html>
 
     <main class="docs-main" id="doc-main">
       <div class="docs-intro">
-        <p class="label">Documentation</p>
+        <p class="docs-breadcrumb"><a href="index.html">BRUT</a><span>/</span>Docs</p>
+        <p class="label">Protocol documentation</p>
         <h1>Idle GPUs. Real jobs. Paid onchain.</h1>
         <p class="lede">How BRUT coordinates a compute job between a buyer and a provider it has never met.</p>
+        <div class="docs-intro__meta" aria-label="Documentation summary">
+          <span>${pages.length} guides</span>
+          <span>Protocol v0.1</span>
+          <span>Built for buyers and providers</span>
+        </div>
       </div>
 
       ${sections}
     </main>
+
+    <aside class="docs-outline" aria-label="On this page">
+      <p class="docs-outline__label">On this page</p>
+      <ol class="docs-outline__list" id="doc-outline"></ol>
+      <a class="docs-outline__top" href="#doc-main">Back to top <span aria-hidden="true">↑</span></a>
+    </aside>
   </div>
 
   <footer class="page__footer">
@@ -280,25 +321,84 @@ const page = `<!doctype html>
     });
   })();
 
-  /* Mark whichever section the reader is in, in the sidebar. */
+  /* The filter keeps a large imported GitBook useful without a framework. */
+  (function () {
+    var input = document.getElementById("docs-search");
+    var status = document.getElementById("docs-search-status");
+    var items = Array.prototype.slice.call(document.querySelectorAll(".docs-side__list li"));
+    if (!input) return;
+
+    var filter = function () {
+      var query = input.value.trim().toLowerCase();
+      var visible = 0;
+      items.forEach(function (item) {
+        var match = !query || item.textContent.toLowerCase().indexOf(query) !== -1;
+        item.hidden = !match;
+        if (match) visible += 1;
+      });
+      status.textContent = visible + (visible === 1 ? " guide" : " guides") + " shown";
+    };
+
+    input.addEventListener("input", filter);
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") { input.value = ""; filter(); input.blur(); }
+      if (event.key === "Enter") {
+        var first = items.find(function (item) { return !item.hidden; });
+        if (first) { event.preventDefault(); first.querySelector("a").click(); }
+      }
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "/" && !/input|textarea|select/i.test(document.activeElement.tagName)) {
+        event.preventDefault(); input.focus();
+      }
+    });
+    filter();
+  })();
+
+  /* Mark the current guide and rebuild the local outline from its subheads. */
   (function () {
     var links = Array.prototype.slice.call(document.querySelectorAll("[data-doc-link]"));
     var sections = Array.prototype.slice.call(document.querySelectorAll(".doc"));
+    var outline = document.getElementById("doc-outline");
     if (!("IntersectionObserver" in window) || !sections.length) return;
 
     var byId = {};
     links.forEach(function (link) { byId[link.getAttribute("href").slice(1)] = link; });
 
     var seen = {};
+    var selected = "";
+    var select = function (id) {
+      if (!id || id === selected) return;
+      selected = id;
+      links.forEach(function (link) {
+        var current = link.getAttribute("href") === "#" + id;
+        link.classList.toggle("is-current", current);
+        if (current) link.setAttribute("aria-current", "location");
+        else link.removeAttribute("aria-current");
+      });
+
+      var section = document.getElementById(id);
+      outline.replaceChildren();
+      Array.prototype.slice.call(section.querySelectorAll("h3[id], h4[id]")).forEach(function (heading) {
+        var item = document.createElement("li");
+        if (heading.tagName === "H4") item.className = "is-nested";
+        var link = document.createElement("a");
+        link.href = "#" + heading.id;
+        link.textContent = heading.textContent;
+        item.appendChild(link);
+        outline.appendChild(item);
+      });
+    };
+
     var observer = new IntersectionObserver(function (entries) {
       entries.forEach(function (entry) { seen[entry.target.id] = entry.isIntersecting; });
       var current = null;
       sections.forEach(function (section) { if (!current && seen[section.id]) current = section.id; });
-      links.forEach(function (link) { link.classList.remove("is-current"); });
-      if (current && byId[current]) byId[current].classList.add("is-current");
+      if (current && byId[current]) select(current);
     }, { rootMargin: "-96px 0px -70% 0px" });
 
     sections.forEach(function (section) { observer.observe(section); });
+    select(sections[0].id);
   })();
 </script>
 </body>
