@@ -228,7 +228,7 @@ const page = `<!doctype html>
   <header class="masthead">
     <div class="container masthead__inner">
       <a class="brand" href="index.html" aria-label="BRUT home">
-        <img src="assets/brand/mark-inverse.svg" width="15" height="21.5" alt="">
+        <img src="assets/brand/mark.svg" width="15" height="21.5" alt="">
         <span>BRUT</span>
       </a>
       <nav class="pill-nav" aria-label="Primary">

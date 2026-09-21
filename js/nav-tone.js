@@ -39,8 +39,7 @@ function start() {
   function apply() {
     /* Later in the document wins, so a pinned stage lying over the section
        behind it reports the one actually on top. */
-    /* Every section is dark in the current theme, so dark is the fallback too. */
-    let tone = "dark";
+    let tone = "light";
     for (const zone of zones) if (crossing.has(zone)) tone = zone.dataset.navTone;
     if (tone === current) return;
     current = tone;
