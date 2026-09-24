@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BRUT Docs | Onchain GPU Compute</title>
+<title>BRUT Docs | GPU Compute on Solana</title>
 <meta name="description" content="The concept, mechanics, state model and trust model behind the BRUT GPU compute marketplace.">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="BRUT">
-<meta property="og:title" content="BRUT Docs | Onchain GPU Compute">
+<meta property="og:title" content="BRUT Docs | GPU Compute on Solana">
 <meta property="og:description" content="The concept, mechanics, state model and trust model behind the BRUT GPU compute marketplace.">
 <link rel="icon" href="assets/brand/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/brut.css">
@@ -87,7 +87,7 @@
 
       <section class="doc" id="introduction" aria-labelledby="introduction-title">
             <h2 class="doc__title" id="introduction-title">BRUT</h2>
-            <p>BRUT is a permissionless onchain marketplace for renting GPU compute.</p>
+            <p>BRUT is a permissionless onchain marketplace for renting GPU compute, built on Solana.</p>
             <p>GPU providers make idle GPU capacity available to buyers. Buyers create compute jobs, lock payment in escrow, match with a provider, receive execution results, and settle the job through onchain rules.</p>
             <p>The core idea is simple:</p>
             <blockquote class="doc-quote">Idle GPUs. Real jobs. Paid onchain.</blockquote>
@@ -96,16 +96,16 @@
             <ol class="doc-list doc-list--num"><li>A provider registers available GPU capacity.</li><li>A buyer creates a compute job.</li><li>The buyer funds escrow before execution starts.</li><li>A provider is selected or matched.</li><li>The provider runs the job offchain.</li><li>Job progress and verification inputs are recorded.</li><li>Completion is verified.</li><li>Payment is released according to the job rules.</li><li>Reputation is updated from the result.</li></ol>
             <h3 id="introduction-documentation-scope">Documentation Scope</h3>
             <p>These docs describe the technical concepts, system mechanics, state model, trust model, and MVP scope of BRUT.</p>
-            <p>They intentionally avoid implementation-specific Solidity architecture so the product can be built quickly and the contract design can remain flexible during development.</p>
+            <p>They intentionally avoid implementation-specific Solana program architecture so the product can be built quickly and the program design can remain flexible during development.</p>
           </section>
 
           <section class="doc" id="overview" aria-labelledby="overview-title">
             <h2 class="doc__title" id="overview-title">Overview</h2>
-            <p>BRUT is an onchain GPU compute marketplace that connects people who need compute with people who own idle GPUs.</p>
+            <p>BRUT is an onchain GPU compute marketplace on Solana that connects people who need compute with people who own idle GPUs.</p>
             <p>The marketplace itself does not own the hardware. The actual compute runs offchain on provider-controlled machines. BRUT coordinates the economic agreement around that compute onchain.</p>
             <p>The system combines five core functions:</p>
             <div class="doc-table"><table><thead><tr><th>Function</th><th>Purpose</th></tr></thead><tbody><tr><td>Marketplace</td><td>Expose GPU supply and compute demand</td></tr><tr><td>Matching</td><td>Connect a job with a suitable provider</td></tr><tr><td>Escrow</td><td>Lock buyer funds before execution</td></tr><tr><td>Verification</td><td>Determine whether the agreed job completed</td></tr><tr><td>Reputation</td><td>Record provider reliability over time</td></tr></tbody></table></div>
-            <p>The blockchain is used for the parts that benefit from deterministic rules and transparent settlement. GPU execution remains offchain because training, inference, and rendering cannot practically run inside a normal smart contract.</p>
+            <p>The blockchain is used for the parts that benefit from deterministic rules and transparent settlement. GPU execution remains offchain because training, inference, and rendering cannot practically run inside a Solana program.</p>
             <h3 id="overview-primary-goal">Primary Goal</h3>
             <p>Create a simple market where a buyer can request GPU compute from an unknown provider without relying only on informal trust.</p>
             <p>The buyer should know what was requested, what price was agreed, what funds are locked, what the current job state is, and what evidence was used before payment is released.</p>
@@ -139,7 +139,7 @@
             <h3 id="system-model-trust-boundary">Trust Boundary</h3>
             <p>BRUT should never treat every offchain claim as equivalent to an onchain fact.</p>
             <p>A useful separation is:</p>
-            <ul class="doc-list"><li><strong>VERIFIED ONCHAIN</strong> — directly readable from contracts.</li><li><strong>VERIFIED VIA ATTESTATION</strong> — supported by hardware attestation or cryptographic execution evidence.</li><li><strong>REPORTED / UNVERIFIED</strong> — submitted by a provider but not independently confirmed.</li></ul>
+            <ul class="doc-list"><li><strong>VERIFIED ONCHAIN</strong> — directly readable from Solana program accounts.</li><li><strong>VERIFIED VIA ATTESTATION</strong> — supported by hardware attestation or cryptographic execution evidence.</li><li><strong>REPORTED / UNVERIFIED</strong> — submitted by a provider but not independently confirmed.</li></ul>
             <p>The system should make the source of a claim visible instead of presenting all data as equally trusted.</p>
           </section>
 
@@ -160,7 +160,7 @@
             <h3 id="actors-verification-source">Verification Source</h3>
             <p>A verification source is any system that contributes evidence about job execution.</p>
             <p>Examples include:</p>
-            <ul class="doc-list"><li>onchain contract state,</li><li>hardware attestation,</li><li>output hash comparison,</li><li>job heartbeats,</li><li>runtime monitoring,</li><li>and execution logs.</li></ul>
+            <ul class="doc-list"><li>onchain program state,</li><li>hardware attestation,</li><li>output hash comparison,</li><li>job heartbeats,</li><li>runtime monitoring,</li><li>and execution logs.</li></ul>
             <p>Not every source has the same confidence level.</p>
           </section>
 
@@ -262,7 +262,7 @@
             <p>Without such evidence, hardware claims should be clearly marked as reported rather than fully verified.</p>
             <h3 id="verification-verification-labels">Verification Labels</h3>
             <h4 id="verification-verified-onchain">VERIFIED ONCHAIN</h4>
-            <p>The claim is directly readable from marketplace or escrow contract state.</p>
+            <p>The claim is directly readable from marketplace or escrow account state on Solana.</p>
             <p>Examples:</p>
             <ul class="doc-list"><li>escrow balance,</li><li>payout state,</li><li>provider stake,</li><li>job status,</li><li>slashing record.</li></ul>
             <h4 id="verification-verified-via-attestation">VERIFIED VIA ATTESTATION</h4>
@@ -312,7 +312,7 @@ Running
   |   |    v   v
 Completed  Failed
           Disputed</code></pre>
-            <p>The exact transition rules belong to the contract implementation, but every transition should be explicit and auditable.</p>
+            <p>The exact transition rules belong to the program implementation, but every transition should be explicit and auditable.</p>
             <h3 id="job-states-two-day-build">Two-Day Build</h3>
             <p>For the first build, the active states can be kept minimal:</p>
             <pre class="doc-pre"><code>Queued -&gt; Running -&gt; Completed
@@ -338,15 +338,15 @@ Completed  Failed
             <h3 id="core-data-model-status">Status</h3>
             <ul class="doc-list"><li>Queued</li><li>Running</li><li>Completed</li><li>Failed</li><li>Disputed</li></ul>
             <h3 id="core-data-model-sources">Sources</h3>
-            <ul class="doc-list"><li>Onchain source</li><li>Attestation source</li><li>Reported source</li><li>Last updated timestamp or block context</li></ul>
-            <p>The data model is conceptual. It does not require every field to live directly inside one smart contract.</p>
+            <ul class="doc-list"><li>Onchain source</li><li>Attestation source</li><li>Reported source</li><li>Last updated timestamp or slot context</li></ul>
+            <p>The data model is conceptual. It does not require every field to live directly inside one program account.</p>
           </section>
 
           <section class="doc" id="data-sources" aria-labelledby="data-sources-title">
             <h2 class="doc__title" id="data-sources-title">Data Sources</h2>
             <p>BRUT uses multiple data sources because not every part of a GPU job exists onchain.</p>
             <h3 id="data-sources-onchain-sources">Onchain Sources</h3>
-            <p>These are read directly from BRUT contracts.</p>
+            <p>These are read directly from BRUT program accounts on Solana.</p>
             <p>Examples:</p>
             <ul class="doc-list"><li>escrow balance,</li><li>release conditions,</li><li>provider stake,</li><li>slashing history,</li><li>job status,</li><li>and payout progress.</li></ul>
             <p>These facts have the strongest direct relationship with the protocol because they are part of blockchain state.</p>
@@ -388,7 +388,7 @@ Completed  Failed
             <p>Returns the sources and confidence labels associated with job claims.</p>
             <h3 id="api-model-role-of-the-api">Role of the API</h3>
             <p>The API is not the final trust source for onchain facts.</p>
-            <p>When data comes from a smart contract, the source of truth remains the blockchain state. The API mainly makes product data easier for the frontend to consume.</p>
+            <p>When data comes from the Solana program, the source of truth remains the onchain account state. The API mainly makes product data easier for the frontend to consume.</p>
           </section>
 
           <section class="doc" id="two-day-mvp-scope" aria-labelledby="two-day-mvp-scope-title">
@@ -397,7 +397,7 @@ Completed  Failed
             <p>The goal of the first build is not to solve every decentralized-compute problem. It is to demonstrate the full economic loop with the smallest coherent system.</p>
             <h3 id="two-day-mvp-scope-build-now">Build Now</h3>
             <h4 id="two-day-mvp-scope-1-one-chain">1. One Chain</h4>
-            <p>Use one EVM-compatible chain.</p>
+            <p>Deploy on Solana only.</p>
             <p>No multi-chain coordination is required.</p>
             <h4 id="two-day-mvp-scope-2-provider-registration">2. Provider Registration</h4>
             <p>A provider can register:</p>
@@ -439,7 +439,7 @@ Completed  Failed
             <p>The following can be enforced or observed onchain:</p>
             <ul class="doc-list"><li>whether payment was funded,</li><li>who the buyer is,</li><li>who the provider is,</li><li>the current recorded job state,</li><li>whether payment was released,</li><li>provider stake,</li><li>and recorded slashing events.</li></ul>
             <h3 id="trust-and-failure-model-what-requires-offchain-evidence">What Requires Offchain Evidence</h3>
-            <p>The following cannot be proven by ordinary contract state alone:</p>
+            <p>The following cannot be proven by ordinary program state alone:</p>
             <ul class="doc-list"><li>exact GPU hardware used,</li><li>whether every computation step was correct,</li><li>actual runtime performance,</li><li>execution logs,</li><li>and physical provider uptime.</li></ul>
             <p>These claims need attestation, cryptographic proof, monitoring, or a weaker reported status.</p>
             <h3 id="trust-and-failure-model-failure-cases">Failure Cases</h3>
@@ -476,7 +476,7 @@ Completed  Failed
             <div class="doc-table"><table><thead><tr><th>Detail</th><th>Example</th></tr></thead><tbody><tr><td>GPU requirement</td><td>A100 x4</td></tr><tr><td>Workload</td><td>Model fine-tuning</td></tr><tr><td>Duration</td><td>6 hours</td></tr><tr><td>Provider</td><td>Provider #4821</td></tr><tr><td>Provider reputation</td><td>98%</td></tr><tr><td>Price</td><td>$1.85 per GPU-hour</td></tr><tr><td>Total</td><td>$44.40</td></tr><tr><td>Escrow</td><td>Funded before execution</td></tr><tr><td>Verification</td><td>Execution evidence + output hash</td></tr><tr><td>Provider stake</td><td>$50 at risk</td></tr><tr><td>Status</td><td>Running</td></tr></tbody></table></div>
             <h3 id="example-job-example-flow">Example Flow</h3>
             <ol class="doc-list doc-list--num"><li>Buyer creates the job.</li><li>Provider #4821 is selected.</li><li>Buyer locks $44.40 in escrow.</li><li>Provider starts execution.</li><li>Heartbeats show that the job is still running.</li><li>Provider submits the result and output hash.</li><li>BRUT checks the required verification input.</li><li>Job is marked completed.</li><li>Escrow releases payment.</li><li>Provider history is updated.</li></ol>
-            <p>The user interface can also link to the relevant onchain job, escrow, verification, and settlement transactions.</p>
+            <p>The user interface can also link to the relevant onchain job, escrow, verification, and settlement transactions on Solana Explorer.</p>
           </section>
 
           <section class="doc" id="product-positioning" aria-labelledby="product-positioning-title">

@@ -1,20 +1,21 @@
 /**
  * Pricing and sending rules.
  *
- * These decide the exact value a wallet is asked to send and whether the
- * button works, so they must agree with ComputeMarketplace to the wei.
+ * These decide the exact amount a job locks and whether the button works,
+ * so they must agree with the market's rules to the lamport.
  * Run with `npm test`.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cost, shapeProblem, hireProblem, postProblem, tranches } from "../js/quote.js";
 
-const GWEI = 10n ** 9n;
+const LAMPORTS = 10n ** 9n; // one SOL
+/* A placeholder key for the tests, not a real account. */
 const PROVIDER = {
-  address: "0x9A3f27c1B4e0d8A7F5c26E1b0D34a9C8e7F10b25",
-  gpuId: "0x01",
+  address: "Provider1111111111111111111111111111111111",
+  gpuId: "a100",
   gpuCount: 8,
-  pricePerGpuHour: 1_000_000n * GWEI, // 0.001 ETH
+  pricePerGpuHour: LAMPORTS / 1000n, // 0.001 SOL
   eligible: true,
   attested: false,
 };
@@ -28,8 +29,8 @@ const request = (over = {}) => ({
   ...over,
 });
 
-test("cost is price times GPUs times hours, in wei", () => {
-  assert.equal(cost(PROVIDER.pricePerGpuHour, 4, 6), 24_000_000n * GWEI);
+test("cost is price times GPUs times hours, in lamports", () => {
+  assert.equal(cost(PROVIDER.pricePerGpuHour, 4, 6), 24_000_000n);
 });
 
 test("cost floors fractional input the way uint32 arguments would", () => {
@@ -48,8 +49,12 @@ test("an ineligible provider blocks", () => {
   assert.match(hireProblem(request(), { ...PROVIDER, eligible: false }), /not taking jobs/);
 });
 
-test("hiring your own listing blocks, whatever the address case", () => {
-  assert.match(hireProblem(request(), PROVIDER, PROVIDER.address.toLowerCase()), /your own listing/);
+test("hiring your own listing blocks", () => {
+  assert.match(hireProblem(request(), PROVIDER, PROVIDER.address), /your own listing/);
+});
+
+test("base58 keys are case sensitive, so a differently cased key is someone else", () => {
+  assert.equal(hireProblem(request(), PROVIDER, PROVIDER.address.toLowerCase()), "");
 });
 
 test("asking for more GPUs than listed blocks", () => {
@@ -61,7 +66,7 @@ test("requiring attestation from an unattested provider blocks", () => {
   assert.equal(hireProblem(request({ requireAttestation: true }), { ...PROVIDER, attested: true }), "");
 });
 
-test("shape limits match the contract", () => {
+test("shape limits match the market rules", () => {
   assert.match(shapeProblem(request({ gpuCount: 0 })), /at least one GPU/);
   assert.match(shapeProblem(request({ durationHours: 0 })), /at least one hour/);
   assert.equal(shapeProblem(request({ durationHours: 720 })), "");
@@ -72,7 +77,7 @@ test("shape limits match the contract", () => {
   assert.match(shapeProblem(request({ workload: "   " })), /container image/);
 });
 
-const post = (over = {}) => ({ ...request(), gpu: "A100-80GB", maxPrice: 5n * GWEI, biddingHours: 24, ...over });
+const post = (over = {}) => ({ ...request(), gpu: "A100-80GB", maxPrice: 5n * LAMPORTS, biddingHours: 24, ...over });
 
 test("a complete open job is postable", () => {
   assert.equal(postProblem(post(), 2 * 86400), "");
@@ -83,7 +88,7 @@ test("an open job needs a GPU and a price", () => {
   assert.match(postProblem(post({ maxPrice: 0n }), 86400), /per GPU hour/);
 });
 
-test("bidding period is bounded by the contract's maximum", () => {
+test("bidding period is bounded by the market's maximum", () => {
   assert.match(postProblem(post({ biddingHours: 0 }), 86400), /at least one hour/);
   assert.equal(postProblem(post({ biddingHours: 24 }), 86400), "");
   assert.match(postProblem(post({ biddingHours: 25 }), 86400), /at most 24 hours/);
@@ -94,4 +99,9 @@ test("milestone tranches sum to the funded escrow exactly", () => {
   assert.deepEqual(parts, [333n, 333n, 334n]);
   assert.equal(parts.reduce((a, b) => a + b, 0n), 1000n);
   assert.deepEqual(tranches(1000n, 1), [1000n]);
+});
+
+test("a job whose cost overflows a u64 of lamports is too large", () => {
+  const huge = { ...PROVIDER, gpuCount: 1024, pricePerGpuHour: 1n << 60n };
+  assert.equal(hireProblem(request({ gpuCount: 1024, durationHours: 720 }), huge), "That job is too large.");
 });

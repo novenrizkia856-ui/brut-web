@@ -50,7 +50,7 @@
 }
 
 /*
- * Token contract bar.
+ * Token mint line.
  *
  * The token is a separate thing from the protocol, so its address gets its own
  * line at the top of the page rather than being folded into the footer. It
@@ -160,7 +160,7 @@
  * The client made the overview section the landing, so the reference hero,
  * its three screen camera and its scroll hint were removed. What is left of
  * .brut-hero is the chrome that lived beside the stage rather than inside it:
- * the brand, the section nav and the contract bar, all position fixed. The
+ * the brand, the section nav and the token mint line, all position fixed. The
  * element stays so those keep the descendant rules the export wrote for them,
  * and it is collapsed so it occupies no space in the flow.
  */

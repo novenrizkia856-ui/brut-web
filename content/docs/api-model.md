@@ -53,4 +53,4 @@ Returns the sources and confidence labels associated with job claims.
 
 The API is not the final trust source for onchain facts.
 
-When data comes from a smart contract, the source of truth remains the blockchain state. The API mainly makes product data easier for the frontend to consume.
+When data comes from the Solana program, the source of truth remains the onchain account state. The API mainly makes product data easier for the frontend to consume.

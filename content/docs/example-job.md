@@ -33,4 +33,4 @@ The job can be represented as:
 9. Escrow releases payment.
 10. Provider history is updated.
 
-The user interface can also link to the relevant onchain job, escrow, verification, and settlement transactions.
+The user interface can also link to the relevant onchain job, escrow, verification, and settlement transactions on Solana Explorer.

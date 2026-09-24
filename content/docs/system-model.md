@@ -41,7 +41,7 @@ BRUT should never treat every offchain claim as equivalent to an onchain fact.
 
 A useful separation is:
 
-- **VERIFIED ONCHAIN** — directly readable from contracts.
+- **VERIFIED ONCHAIN** — directly readable from Solana program accounts.
 - **VERIFIED VIA ATTESTATION** — supported by hardware attestation or cryptographic execution evidence.
 - **REPORTED / UNVERIFIED** — submitted by a provider but not independently confirmed.
 

@@ -1,32 +1,37 @@
 /**
  * Config loader.
  *
- * config/contracts.js is a plain script that sets window.CONTRACT_CONFIG, so
- * it is already present by the time this runs. Everything here is about
- * answering "is this configured?" without every caller repeating the checks.
+ * config/solana.js is a plain script that sets window.SOLANA_CONFIG, so it is
+ * already present by the time this runs. Everything here is about answering
+ * "is this configured?" without every caller repeating the checks.
  */
-const RAW = (typeof window !== "undefined" && window.CONTRACT_CONFIG) || {};
+import { isPublicKey } from "./codec.js";
+
+const RAW = (typeof window !== "undefined" && window.SOLANA_CONFIG) || {};
 
 const text = (value) => (typeof value === "string" ? value.trim() : "");
-const isAddress = (value) => /^0x[0-9a-fA-F]{40}$/.test(text(value));
+const key = (value) => (isPublicKey(value) ? text(value) : "");
 const labels = (value) => (Array.isArray(value) ? value.map(text).filter(Boolean) : []);
 
+/* Clusters the explorer and the network strip know how to name. */
+const CLUSTERS = {
+  "mainnet-beta": "Mainnet beta",
+  devnet: "Devnet",
+  testnet: "Testnet",
+};
+
+const network = CLUSTERS[text(RAW.network)] ? text(RAW.network) : "mainnet-beta";
+
 export const config = {
-  network: text(RAW.network),
-  chainId: Number(RAW.chainId) || 0,
+  network,
+  networkName: CLUSTERS[network],
   rpcUrl: text(RAW.rpcUrl),
   explorerUrl: text(RAW.explorerUrl).replace(/\/+$/, ""),
-  currency: {
-    name: text(RAW.currency && RAW.currency.name) || "Ether",
-    symbol: text(RAW.currency && RAW.currency.symbol) || "ETH",
-    decimals: 18,
-  },
-  marketAddress: isAddress(RAW.marketAddress) ? text(RAW.marketAddress) : "",
-  registryAddress: isAddress(RAW.registryAddress) ? text(RAW.registryAddress) : "",
-  deployBlock: Number(RAW.deployBlock) || 0,
-  tokenAddress: isAddress(RAW.tokenAddress) ? text(RAW.tokenAddress) : "",
+  programId: key(RAW.programId),
+  tokenMint: key(RAW.tokenMint),
   tokenLaunched: RAW.tokenLaunched === true,
-  walletConnectProjectId: /^[0-9a-f]{32}$/i.test(text(RAW.walletConnectProjectId)) ? text(RAW.walletConnectProjectId) : "",
+  tokenSymbol: text(RAW.tokenSymbol) || "BRUT",
+  treasuryAddress: key(RAW.treasuryAddress),
   gpus: labels(RAW.gpus),
   regions: labels(RAW.regions),
   links: {
@@ -35,22 +40,16 @@ export const config = {
   },
 };
 
-/** True once both contracts and somewhere to read them from are configured. */
-export const isLive = Boolean(config.marketAddress && config.registryAddress && config.rpcUrl && config.chainId);
+/* Mainnet is the explorer's default; every other cluster is named per link. */
+const cluster = network === "mainnet-beta" ? "" : `?cluster=${network}`;
 
-/** Explorer URL for an address, or "" when there is no explorer configured. */
+/** Solana Explorer URL for an account, program or mint, or "". */
 export function explorerAddress(address) {
-  if (!config.explorerUrl || !isAddress(address)) return "";
-  return `${config.explorerUrl}/address/${address}`;
+  if (!config.explorerUrl || !isPublicKey(address)) return "";
+  return `${config.explorerUrl}/address/${address}${cluster}`;
 }
 
-/** Explorer URL for a transaction hash. */
-export function explorerTx(hash) {
-  if (!config.explorerUrl || !/^0x[0-9a-fA-F]{64}$/.test(text(hash))) return "";
-  return `${config.explorerUrl}/tx/${hash}`;
-}
-
-/** 0x1234…abcd, for showing an address in a tight space. */
+/** ABCD…WXYZ, for showing a public key in a tight space. */
 export function shortAddress(address) {
-  return isAddress(address) ? `${address.slice(0, 6)}…${address.slice(-4)}` : "";
+  return isPublicKey(address) ? `${address.slice(0, 4)}…${address.slice(-4)}` : "";
 }

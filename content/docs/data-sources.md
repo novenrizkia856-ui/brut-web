@@ -4,7 +4,7 @@ BRUT uses multiple data sources because not every part of a GPU job exists oncha
 
 ## Onchain Sources
 
-These are read directly from BRUT contracts.
+These are read directly from BRUT program accounts on Solana.
 
 Examples:
 
