@@ -1,17 +1,20 @@
 /**
- * Token mint line.
+ * Token contract bar.
  *
- * The BRUT SPL token is separate from the BRUT program, so this line shows
- * only `tokenMint` and never the program id.
+ * The BRUT token is separate from the protocol contracts, so this bar shows
+ * only `tokenAddress` and never the market address.
  *
- * `tokenLaunched` is what reveals it, not the presence of a mint. That way
- * the mint can be filled in and reviewed ahead of time while the line still
- * reads "Coming soon", and launch is a one word edit on the deployed site.
+ * `tokenLaunched` is what reveals it, not the presence of an address. That
+ * way the address can be filled in and reviewed ahead of time while the bar
+ * still reads "Coming soon", and launch is a one word edit on the deployed
+ * site.
  */
-import { config, explorerAddress, shortAddress } from "./config.js";
+import { config } from "./config.js";
 
 const FEEDBACK_MS = 1800;
 const COMPACT = matchMedia("(max-width: 767px)");
+
+const short = (address) => `${address.slice(0, 6)}…${address.slice(-4)}`;
 
 /**
  * Clipboard API where it works, a selected off screen textarea where it does
@@ -58,12 +61,12 @@ function start() {
   const label = bar.querySelector("[data-ca-copy-text]");
   const explorer = bar.querySelector("[data-ca-explorer]");
 
-  const address = config.tokenMint;
+  const address = config.tokenAddress;
   const live = config.tokenLaunched && Boolean(address);
   let timer = 0;
 
   if (config.tokenLaunched && !address) {
-    console.warn("BRUT: tokenLaunched is true but tokenMint is empty or not a public key.");
+    console.warn("BRUT: tokenLaunched is true but tokenAddress is empty or malformed.");
   }
 
   function render() {
@@ -72,16 +75,16 @@ function start() {
     if (!live) {
       value.textContent = "Coming soon";
       value.removeAttribute("title");
-      button.setAttribute("aria-label", "The token mint appears here at launch.");
+      button.setAttribute("aria-label", "The token address appears here at launch.");
       explorer.hidden = true;
       return;
     }
 
-    value.textContent = COMPACT.matches ? shortAddress(address) : address;
+    value.textContent = COMPACT.matches ? short(address) : address;
     value.title = address;
-    button.setAttribute("aria-label", `Copy the token mint ${address}`);
+    button.setAttribute("aria-label", `Copy the token address ${address}`);
 
-    const url = explorerAddress(address);
+    const url = config.explorerUrl ? `${config.explorerUrl}/address/${address}` : "";
     explorer.hidden = !url;
     if (url) explorer.href = url;
   }

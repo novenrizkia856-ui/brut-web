@@ -226,12 +226,12 @@ const page = `<!doctype html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BRUT Docs | GPU Compute on Solana</title>
+<title>BRUT Docs | Onchain GPU Compute</title>
 <meta name="description" content="The concept, mechanics, state model and trust model behind the BRUT GPU compute marketplace.">
 <meta name="robots" content="index, follow">
 <meta property="og:type" content="article">
 <meta property="og:site_name" content="BRUT">
-<meta property="og:title" content="BRUT Docs | GPU Compute on Solana">
+<meta property="og:title" content="BRUT Docs | Onchain GPU Compute">
 <meta property="og:description" content="The concept, mechanics, state model and trust model behind the BRUT GPU compute marketplace.">
 <link rel="icon" href="assets/brand/mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/brut.css">

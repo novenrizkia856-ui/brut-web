@@ -16,7 +16,7 @@ The following can be enforced or observed onchain:
 
 ## What Requires Offchain Evidence
 
-The following cannot be proven by ordinary program state alone:
+The following cannot be proven by ordinary contract state alone:
 
 - exact GPU hardware used,
 - whether every computation step was correct,

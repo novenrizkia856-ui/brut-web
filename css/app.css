@@ -386,14 +386,11 @@ tr.is-picked .pick { background: var(--brut-onchain); color: #05301f; }
   background: rgba(7, 7, 7, 0.05);
   font-size: 13px;
   text-align: left;
-  text-decoration: none;
   cursor: pointer;
 }
 .wallet__option:hover { background: rgba(7, 7, 7, 0.1); }
 .wallet__option img { border-radius: 6px; }
 .wallet__option--quiet { background: transparent; color: var(--brut-mute); }
-/* A Solana public key runs to 44 characters: let it wrap inside the menu. */
-.wallet__address { margin-top: 10px; font-size: 12px; overflow-wrap: anywhere; }
 
 /* hero numbers and banners */
 .vitals {
@@ -423,6 +420,7 @@ tr.is-picked .pick { background: var(--brut-onchain); color: #05301f; }
   background: rgba(7, 7, 7, 0.05);
   font-size: 13px;
 }
+.banner--wrong { background: rgba(255, 76, 79, 0.1); }
 .banner--claim { background: rgba(118, 185, 0, 0.14); }
 
 .tabs {
@@ -558,10 +556,6 @@ h2 .status { margin-left: 10px; font-size: 13px; }
   .vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tabs { border-radius: 20px; }
   .masthead__inner { flex-wrap: wrap; }
-  /* The wallet button no longer sits at the right edge here, so the menu
-     spans the header's gutters instead of hanging off the left side. */
-  .wallet { position: static; }
-  .wallet__menu { top: calc(100% - 8px); right: 16px; left: 16px; width: auto; }
 }
 
 /* long hashes and addresses wrap instead of widening the page */

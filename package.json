@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "docs": "node tools/build-docs.mjs",
-    "config": "node tools/write-config.mjs",
     "audit": "node tools/check-copy.mjs",
     "test": "node --test test/*.test.mjs",
     "check": "npm run docs && npm run audit && npm test"

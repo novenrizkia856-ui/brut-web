@@ -8,7 +8,7 @@ The goal of the first build is not to solve every decentralized-compute problem.
 
 ### 1. One Chain
 
-Deploy on Solana only.
+Use one EVM-compatible chain.
 
 No multi-chain coordination is required.
 

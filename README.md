@@ -1,7 +1,7 @@
 # BRUT Web
 
 Landing page, app and docs for BRUT, a permissionless onchain marketplace for
-renting GPU compute, built on Solana.
+renting GPU compute.
 
 Providers list idle GPU capacity. Buyers post a compute job, lock payment in
 escrow before any work starts, and settlement follows a release rule that is
@@ -31,14 +31,14 @@ machines, and BRUT coordinates the economic agreement around it.
 | `js/geometry.js` | Rotation, face normals and lighting, shared by the above. |
 | `js/accordion.js` | The four proof points and their progress rails. |
 | `js/nav-tone.js` | Recolours the fixed header over light and dark sections. |
-| `js/token-bar.js` | The token mint line beneath the landing heading. |
-| `js/quote.js` | Pure pricing and job rules, exact to the lamport. Covered by `test/`. |
-| `js/codec.js` | Base58 keys, SHA-256 and lamport formatting, without a library. Covered by `test/`. |
-| `js/chain.js` | Solana JSON RPC reads and Wallet Standard discovery. Never signs or sends. |
-| `js/app.js` | The app: rent, provide, jobs and operator panels, previewing every action. |
-| `tools/write-config.mjs` | Writes environment variables into `config/solana.js`, see `.env.example`. |
-| `js/config.js` | Reads `config/solana.js`, validates keys and builds Solana Explorer links. |
-| `config/solana.js` | Network, RPC, program id, token mint and treasury. Stays outside any build. |
+| `js/contract-bar.js` | The token address bar at the top of the landing page. |
+| `js/quote.js` | Pure pricing and sending rules, exact to the wei. Covered by `test/`. |
+| `js/chain.js` | ABIs, reads over the public RPC, wallet discovery, chain switching, error messages. |
+| `js/app.js` | The app: rent, provide, jobs and operator panels over the live contracts. |
+| `vendor/` | ethers 6.17.0 and WalletConnect ethereum provider 2.25.0 (bundled with its QR modal, licences at the end of the file), self hosted. WalletConnect loads only when picked. |
+| `tools/sync-contracts.mjs` | Copies a deployment's addresses into `config/contracts.js`. |
+| `js/config.js` | Reads `config/contracts.js` and answers "is this configured?". |
+| `config/contracts.js` | The only file to edit after a deployment. Stays outside any build. |
 | `content/docs/` | The documentation source, ordered by `SUMMARY.md`. |
 | `assets/` | Artwork, named by a hash of its own contents. |
 | `assets/fonts/` | Archivo and JetBrains Mono, Latin and Latin Extended subsets. |
@@ -66,7 +66,7 @@ heading as a compact subheading.
 | Ink | `#070707`, softening to `#201d1e` and `#a1a1a1` |
 | Display type | BRUT Serif: Archivo held at 112% width, at the reference's sizes |
 | Body type | BRUT Sans: Archivo at normal width |
-| Figures | BRUT Mono: JetBrains Mono, for public keys, hashes and registry labels |
+| Figures | BRUT Mono: JetBrains Mono, for addresses, hashes and registry labels |
 | Stage | Drawn at 1440 x 841 and scaled to the viewport, see `js/scale.js` |
 | Card | 887 x 479, 30px radius, `inset 0 0 0 4px #000` |
 
@@ -180,9 +180,8 @@ npm run docs
 python -m http.server 5250
 ```
 
-There are no dependencies to install, and no library for Solana either: reads
-are plain JSON RPC calls and wallets are found through the Wallet Standard.
-`npm run docs` regenerates `docs.html` from `content/docs/`.
+There are no dependencies to install. `npm run docs` regenerates `docs.html`
+from `content/docs/`.
 
 ## Checks
 
@@ -194,73 +193,61 @@ That runs all three:
 
 - `npm run docs` regenerates the docs page, so it can never drift from the source.
 - `npm run audit` fails on a dash in visible copy, on a sentence over 15 words,
-  on any wording left over from the reference build, and on EVM wording
-  (Ethereum, ETH, MetaMask and the like) in the copy or the docs source.
-- `npm test` covers pricing, the job rules and the Solana encodings.
+  and on any wording left over from the reference build.
+- `npm test` covers pricing and the funding rules.
 
-## Solana
+## Connecting the contracts
 
-BRUT runs on Solana. No BRUT program is deployed yet, and this repository
-deploys none: it is the frontend only. Until a program exists the app keeps
-every screen, form and check, but execution is not live.
+The app runs entirely against the deployed contracts in `brut-contracts`:
+`ProviderRegistry` for listings and stake, `ComputeMarketplace` for jobs,
+escrow, verdicts and disputes. Reads use the public RPC, so anyone can browse
+without a wallet. Writes go through a browser wallet, found through EIP 6963,
+which the app asks to switch to the configured chain first.
 
-| | Status |
-|---|---|
-| Wallets | Live. Phantom, Solflare, Backpack and any Wallet Standard wallet connect, disconnect and switch accounts. |
-| Reads | Live. The cluster slot, and the connected wallet's SOL balance and BRUT token balance. |
-| Listings and jobs | Empty. There is no program to read them from, so the app shows none. |
-| Actions | Preview only. Every form validates and says what it would do, then that nothing was signed or sent. |
-
-The app never asks a wallet to sign anything and never builds or broadcasts a
-transaction. `js/chain.js` has no signing code at all, and `send` in
-`js/app.js` stops at a preview while `EXECUTION_LIVE` is false. Turning
-execution on takes a deployed program and a client for it, not a flag.
-
-On a phone with no wallet extension, the wallet menu offers to open the page
-inside Phantom or Solflare, whose in app browsers provide the wallet.
-
-### Configuration
-
-`config/solana.js` is the only file the browser reads for chain settings. Edit
-it directly, or set environment variables and run:
+### After a deploy
 
 ```bash
-npm run config -- .env
+node tools/sync-contracts.mjs
 ```
 
-| Field | Variable | Effect |
+This copies `ComputeMarketplace`, `ProviderRegistry`, `deployBlock` and
+`chainId` from `../brut-contracts/deployments/4663.json` into
+`config/contracts.js`. Pass another deployment file to point elsewhere. Until
+the addresses are filled in, the app says the contracts are not configured.
+
+| Field | Effect |
+|---|---|
+| `network`, `chainId`, `rpcUrl`, `explorerUrl`, `currency` | The chain every read and write targets, and how a wallet adds it. |
+| `walletConnectProjectId` | Adds WalletConnect, so phone wallets connect by QR. Allow the site domain for this id at cloud.reown.com. |
+| `marketAddress`, `registryAddress` | The two protocol contracts. Both are required. |
+| `deployBlock` | Where the contracts start, for anyone scanning events. |
+| `gpus`, `regions` | Labels a listing can name. Onchain they are `keccak256(label)`. Add freely, never rename. |
+| `tokenAddress`, `tokenLaunched` | The separate token, shown in the bar at the top of the landing page. |
+| `links.x` | Enables the footer social link. Empty leaves it dimmed and inert. |
+
+### What the app does
+
+| Panel | Who | What |
 |---|---|---|
-| `network` | `SOLANA_NETWORK` | `mainnet-beta`, `devnet` or `testnet`. Explorer links carry the cluster. |
-| `rpcUrl` | `SOLANA_RPC_URL` | JSON RPC for every read. It must allow browser requests. |
-| `explorerUrl` | `EXPLORER_BASE_URL` | Solana Explorer root for every account link. |
-| `programId` | `BRUT_PROGRAM_ID` | The BRUT program. Empty: none is deployed. |
-| `tokenMint` | `BRUT_TOKEN_MINT` | The BRUT SPL token mint. Empty until the token exists. |
-| `treasuryAddress` | `TREASURY_ADDRESS` | Linked from the app footer once set. |
-| `tokenLaunched` | | Reveals the token mint on the landing page. |
-| `gpus`, `regions` | | Labels a listing can name. A listing stores their SHA-256. Add freely, never rename. |
-| `links.x` | | Enables the footer social link. Empty leaves it dimmed and inert. |
+| Rent | Buyers | Hire a listed provider at its price, or post a job for bids with a budget. Escrow is funded in the same transaction. |
+| Provide | Providers | Register with stake, go online, update the listing, add or withdraw free stake, bid on open jobs. |
+| Jobs | Everyone | Every job with its evidence trail and exactly the actions open to the connected wallet: accept a bid, start, heartbeat, submit a result, dispute, settle, fail an expired job. |
+| Operate | Role holders | Verdicts and milestone payouts (verifier), dispute rulings (arbitrator), hardware attestation (attestor), pause (pauser). Hidden from everyone else. |
 
-Every address is checked as a 32 byte base58 key; anything else is ignored, so
-a typo leaves a link inert rather than pointing somewhere wrong. None of these
-values is a secret, and no placeholder address is shipped.
-
-The default RPC is PublicNode, which is free and allows browser requests. The
-Solana Foundation endpoint, `api.mainnet-beta.solana.com`, refuses requests
-from browsers, and PublicNode does not answer token balance lookups, so use a
-dedicated provider for production. Reads are light: the slot, plus one or two
-balance calls for a connected wallet, every 20 seconds while the tab is open.
+Workload and result references are hashed before they go onchain. The buyer's
+own browser remembers the plain reference for its jobs, and anyone handed a
+reference can check it against a job's hash on the job page.
 
 ### The token subheading
 
-The token is separate from the program, so its state sits beneath the landing
-heading. It reads "Coming soon" until `tokenLaunched` is true, whatever
-`tokenMint` holds. That lets the mint be checked ahead of time, and launch
-stays a one word edit. Once live it shows the mint, shortened on phones, with
-a copy button and a Solana Explorer link.
+The token is separate from the protocol contracts, so its state sits beneath
+the landing heading. It reads "Coming soon" until `tokenLaunched` is true,
+whatever `tokenAddress` holds. That lets the address be checked ahead of time,
+and launch stays a one word edit.
 
 ## Deployment
 
 `vercel.json` publishes the directory as it stands, with hashed assets served
-immutable for a year and `config/solana.js` set to revalidate every time, so
-a deployment can be pointed at a program or a mint by editing that one file. It also
+immutable for a year and `config/contracts.js` set to revalidate every time, so
+a deployment can be pointed at a contract by editing that one file. It also
 sets the baseline security headers.

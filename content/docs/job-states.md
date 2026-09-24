@@ -24,7 +24,7 @@ Completed  Failed
           Disputed
 ```
 
-The exact transition rules belong to the program implementation, but every transition should be explicit and auditable.
+The exact transition rules belong to the contract implementation, but every transition should be explicit and auditable.
 
 ## Two-Day Build
 

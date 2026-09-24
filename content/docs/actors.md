@@ -53,7 +53,7 @@ A verification source is any system that contributes evidence about job executio
 
 Examples include:
 
-- onchain program state,
+- onchain contract state,
 - hardware attestation,
 - output hash comparison,
 - job heartbeats,

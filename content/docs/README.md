@@ -1,6 +1,6 @@
 # BRUT
 
-BRUT is a permissionless onchain marketplace for renting GPU compute, built on Solana.
+BRUT is a permissionless onchain marketplace for renting GPU compute.
 
 GPU providers make idle GPU capacity available to buyers. Buyers create compute jobs, lock payment in escrow, match with a provider, receive execution results, and settle the job through onchain rules.
 
@@ -26,4 +26,4 @@ BRUT does not try to become a cloud provider itself. It coordinates supply, dema
 
 These docs describe the technical concepts, system mechanics, state model, trust model, and MVP scope of BRUT.
 
-They intentionally avoid implementation-specific Solana program architecture so the product can be built quickly and the program design can remain flexible during development.
+They intentionally avoid implementation-specific Solidity architecture so the product can be built quickly and the contract design can remain flexible during development.

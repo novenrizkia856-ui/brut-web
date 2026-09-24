@@ -68,24 +68,9 @@ const LEFTOVERS = [
   "candlestick", "leaderboard", "signal seekers", "capital-preservation",
 ];
 
-// The app moved from an EVM chain to Solana. These belong to the old stack,
-// so any survivor in visible copy or the docs source is a migration miss.
-const EVM_LEFTOVERS = /\b(robinhood|ethereum|evm|eth|ether|wei|gwei|metamask|etherscan|blockscout|solidity|erc ?20|chain ?id|walletconnect)\b/i;
-
-for (const file of readdirSync(join(root, "content", "docs"))) {
-  if (!file.endsWith(".md")) continue;
-  for (const line of readFileSync(join(root, "content", "docs", file), "utf8").split("\n")) {
-    if (EVM_LEFTOVERS.test(line)) strings.push({ source: `content/docs/${file}`, text: line.trim(), docs: true });
-  }
-}
-
 // ---- checks
 const problems = [];
-for (const { source, text, docs } of strings) {
-  const evm = EVM_LEFTOVERS.exec(text);
-  if (evm) problems.push(`[EVM wording "${evm[1]}"] ${source}: "${text}"`);
-  /* The docs keep their own style; only the EVM check applies to them. */
-  if (docs) continue;
+for (const { source, text } of strings) {
   if (DASHES.test(text)) problems.push(`[dash] ${source}: "${text}"`);
   const lower = text.toLowerCase();
   for (const term of LEFTOVERS) {
@@ -105,4 +90,4 @@ if (problems.length) {
   console.error(problems.join("\n"));
   process.exit(1);
 }
-console.log("Copy rules pass: no dashes, no long sentences, nothing left of the reference or the EVM stack.");
+console.log("Copy rules pass: no dashes, no long sentences, nothing left of the reference.");

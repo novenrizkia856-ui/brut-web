@@ -1,6 +1,6 @@
 # Overview
 
-BRUT is an onchain GPU compute marketplace on Solana that connects people who need compute with people who own idle GPUs.
+BRUT is an onchain GPU compute marketplace that connects people who need compute with people who own idle GPUs.
 
 The marketplace itself does not own the hardware. The actual compute runs offchain on provider-controlled machines. BRUT coordinates the economic agreement around that compute onchain.
 
@@ -14,7 +14,7 @@ The system combines five core functions:
 | Verification | Determine whether the agreed job completed |
 | Reputation | Record provider reliability over time |
 
-The blockchain is used for the parts that benefit from deterministic rules and transparent settlement. GPU execution remains offchain because training, inference, and rendering cannot practically run inside a Solana program.
+The blockchain is used for the parts that benefit from deterministic rules and transparent settlement. GPU execution remains offchain because training, inference, and rendering cannot practically run inside a normal smart contract.
 
 ## Primary Goal
 

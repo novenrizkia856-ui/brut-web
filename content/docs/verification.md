@@ -34,7 +34,7 @@ Without such evidence, hardware claims should be clearly marked as reported rath
 
 ### VERIFIED ONCHAIN
 
-The claim is directly readable from marketplace or escrow account state on Solana.
+The claim is directly readable from marketplace or escrow contract state.
 
 Examples:
 

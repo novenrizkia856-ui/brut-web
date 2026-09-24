@@ -4,13 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BRUT App | Rent GPU Compute</title>
-<meta name="description" content="Rent GPU compute or list your own. Escrow, stake and settlement run on Solana.">
+<meta name="description" content="Rent GPU compute or list your own. Escrow, stake and settlement run onchain.">
 <meta name="theme-color" content="#f1f1f1">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="BRUT">
 <meta property="og:title" content="BRUT App | Rent GPU Compute">
-<meta property="og:description" content="Rent GPU compute or list your own. Escrow, stake and settlement run on Solana.">
+<meta property="og:description" content="Rent GPU compute or list your own. Escrow, stake and settlement run onchain.">
 <link rel="icon" href="assets/brand/mark.svg" type="image/svg+xml">
+<link rel="modulepreload" href="vendor/ethers-6.17.0.min.js">
 <link rel="stylesheet" href="css/brut.css">
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/app.css">
@@ -41,11 +42,9 @@
           <span data-wallet-label>Connect wallet</span>
         </button>
         <div class="wallet__menu card" data-wallet-menu hidden>
-          <p class="label" data-wallet-title>Choose a wallet</p>
-          <p class="wallet__address mono" data-wallet-address hidden></p>
-          <p class="note" data-wallet-balance hidden></p>
+          <p class="label">Choose a wallet</p>
           <ul class="wallet__list" data-wallet-list></ul>
-          <p class="note" data-wallet-none hidden>No Solana wallet found. Open this page in a wallet app, or install one.</p>
+          <p class="note" data-wallet-none hidden>No browser wallet found. Open this page in a wallet app, or install one.</p>
         </div>
       </div>
     </div>
@@ -57,7 +56,7 @@
       <div class="container app-hero__inner">
         <div class="app-hero__copy">
           <p class="label">BRUT app</p>
-          <h1>Rent a GPU. Settle on Solana.</h1>
+          <h1>Rent a GPU. Settle onchain.</h1>
           <p class="lede">Hire a provider or post a job for bids. Payment locks before work starts.</p>
         </div>
         <div class="netstrip" data-network-state="pending">
@@ -75,8 +74,11 @@
           <div><dt>Collateral per job</dt><dd data-vital="collateral">0</dd></div>
           <div><dt>Dispute bond</dt><dd data-vital="bond">0</dd></div>
         </dl>
-        <p class="banner" data-not-live>Solana execution is not live yet. Every step previews, but nothing is sent.</p>
         <p class="banner" data-paused hidden>New jobs and bids are paused. Running jobs and payouts continue.</p>
+        <p class="banner banner--wrong" data-wrong-chain hidden>
+          <span>Your wallet is on another network.</span>
+          <button class="btn" type="button" data-switch-chain>Switch network</button>
+        </p>
         <div class="banner banner--claim" data-claim hidden>
           <span>A payout of <strong data-claim-amount>0</strong> is waiting for you.</span>
           <button class="btn" type="button" data-claim-button>Claim</button>
@@ -160,7 +162,7 @@
                 <input id="job-milestones" type="number" min="1" max="10" step="1" value="1" data-field="milestones">
               </div>
               <div class="field" data-bids-only hidden>
-                <label for="job-max">Most per GPU hour, in SOL</label>
+                <label for="job-max">Most per GPU hour, in ETH</label>
                 <input id="job-max" type="text" inputmode="decimal" autocomplete="off" value="" placeholder="0.002" data-field="max">
               </div>
               <div class="field" data-bids-only hidden>
@@ -247,7 +249,7 @@
                   <input id="reg-count" type="number" min="1" step="1" value="1" data-reg="count">
                 </div>
                 <div class="field">
-                  <label for="reg-price">Price per GPU hour, in SOL</label>
+                  <label for="reg-price">Price per GPU hour, in ETH</label>
                   <input id="reg-price" type="text" inputmode="decimal" autocomplete="off" placeholder="0.002" data-reg="price">
                 </div>
                 <div class="field">
@@ -260,7 +262,7 @@
                   <p class="hint">Only its hash goes onchain. Buyers use it to reach you.</p>
                 </div>
                 <div class="field field--wide">
-                  <label for="reg-stake">Stake, in SOL</label>
+                  <label for="reg-stake">Stake, in ETH</label>
                   <input id="reg-stake" type="text" inputmode="decimal" autocomplete="off" data-reg="stake">
                   <p class="hint" data-reg-stake-hint></p>
                 </div>
@@ -322,7 +324,7 @@
                     <input id="upd-count" type="number" min="1" step="1" data-upd="count">
                   </div>
                   <div class="field">
-                    <label for="upd-price">Price per GPU hour, in SOL</label>
+                    <label for="upd-price">Price per GPU hour, in ETH</label>
                     <input id="upd-price" type="text" inputmode="decimal" autocomplete="off" data-upd="price">
                   </div>
                   <div class="field">
@@ -342,7 +344,7 @@
               <div class="card panel">
                 <p class="label">Stake</p>
                 <div class="field">
-                  <label for="dep-amount">Add stake, in SOL</label>
+                  <label for="dep-amount">Add stake, in ETH</label>
                   <div class="inline">
                     <input id="dep-amount" type="text" inputmode="decimal" autocomplete="off" data-deposit-amount>
                     <button class="btn" type="button" data-deposit>Deposit</button>
@@ -350,7 +352,7 @@
                 </div>
                 <p class="txnote" data-tx="deposit" hidden></p>
                 <div class="field">
-                  <label for="wd-amount">Withdraw free stake, in SOL</label>
+                  <label for="wd-amount">Withdraw free stake, in ETH</label>
                   <div class="inline">
                     <input id="wd-amount" type="text" inputmode="decimal" autocomplete="off" data-withdraw-amount>
                     <button class="btn btn--quiet" type="button" data-withdraw-max>Max</button>
@@ -499,8 +501,8 @@
             <div class="card panel" data-op="attestor" hidden>
               <p class="label">Attest provider hardware</p>
               <div class="field">
-                <label for="att-provider">Provider public key</label>
-                <input id="att-provider" type="text" spellcheck="false" autocomplete="off" placeholder="Provider public key" data-att="provider">
+                <label for="att-provider">Provider address</label>
+                <input id="att-provider" type="text" spellcheck="false" autocomplete="off" placeholder="0x" data-att="provider">
               </div>
               <div class="field">
                 <label for="att-ref">Attestation reference</label>
@@ -528,14 +530,14 @@
     <div class="container">
       <span>BRUT coordinates the agreement. Compute runs on provider hardware.</span>
       <span class="footer__links">
-        <a data-program-link target="_blank" rel="noopener noreferrer">Program</a>
-        <a data-treasury-link target="_blank" rel="noopener noreferrer">Treasury</a>
+        <a data-contract-link target="_blank" rel="noopener noreferrer">Marketplace</a>
+        <a data-registry-link target="_blank" rel="noopener noreferrer">Registry</a>
       </span>
     </div>
   </footer>
 </div>
 
-<script src="config/solana.js"></script>
+<script src="config/contracts.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

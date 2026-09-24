@@ -1,11 +1,6 @@
 node_modules
 .vercel
 
-# Local settings. .env.example documents them; config/solana.js is what ships.
-.env
-.env.*
-!.env.example
-
 # The supplied export, kept on disk for diffing the adaptation against.
 # It is another company's production build, so it is not committed and not
 # deployed.

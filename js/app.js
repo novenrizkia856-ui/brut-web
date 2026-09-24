@@ -1,69 +1,57 @@
 /**
  * The BRUT app.
  *
- * Four panels over the BRUT market on Solana:
+ * Four panels over the two deployed contracts:
  *   Rent     hire a listed provider, or post a job for bids, funding escrow
  *   Provide  register a listing, manage stake and availability, bid on jobs
  *   Jobs     every job with its evidence, and the actions open to you now
  *   Operate  verdicts, disputes, attestations and pause, for role holders
  *
- * Solana wallets connect for real, and the wallet's SOL and token balances
- * are read from the RPC. Execution is not live: no BRUT program is deployed,
- * so there are no listings or jobs to read, and every action runs its checks
- * and shows what it would do without asking the wallet to sign anything.
+ * All state is read from the chain through the public RPC; the wallet is only
+ * needed to send. After every confirmed transaction the page reads again, so
+ * what is on screen is always what the contracts hold.
  */
-import { config, explorerAddress, shortAddress } from "./config.js";
+import { config, isLive, explorerAddress, explorerTx, shortAddress } from "./config.js";
 import {
-  EXECUTION_LIVE,
-  NO_KEY,
-  ZERO_HASH,
-  readSlot,
+  market,
+  registry,
+  readProtocol,
+  readProviders,
+  readProvider,
+  readJobs,
+  readJob,
+  readRoles,
   readAccount,
+  readNow,
   wallets,
-  walletApps,
-  sol,
-  parseSol,
-  formatUnits,
-  isPublicKey,
+  signerFor,
+  prepare,
+  release,
+  explain,
+  eth,
+  parseAmount,
   labelHash,
   gpuName,
   regionName,
-  toDigest,
+  toBytes32,
+  ZeroHash,
+  getAddress,
+  MARKET_ABI,
 } from "./chain.js";
 import { cost, hireProblem, postProblem, tranches } from "./quote.js";
+import { Interface } from "../vendor/ethers-6.17.0.min.js";
 
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const POLL_MS = 20000;
-const FEEDBACK_MS = 1800;
+const MARKET_IFACE = new Interface(MARKET_ABI);
 
 const esc = (value) =>
   String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-/* Base58 keys are case sensitive, so two keys match only exactly. */
-const same = (a, b) => Boolean(a && b) && a === b;
-const SOL = "SOL";
-
-/**
- * The market as the chain holds it today. No BRUT program is deployed, so
- * nothing is listed, no job exists and no parameter is set yet. Values the
- * program will decide read as null and show as "At launch".
- */
-const MARKET_NOT_LIVE = Object.freeze({
-  live: false,
-  providerCount: 0,
-  jobCount: 0,
-  paused: false,
-  jobCollateral: null,
-  disputeBond: null,
-  minStake: null,
-  maxBiddingPeriod: 0,
-});
-const AT_LAUNCH = "At launch";
-const NO_ROLES = Object.freeze({ verifier: false, arbitrator: false, pauser: false, admin: false, attestor: false });
-
-/** A lamport amount with its unit, or "At launch" when the program sets it. */
-const solOr = (lamports) => (lamports === null || lamports === undefined ? AT_LAUNCH : `${sol(lamports)} ${SOL}`);
+const same = (a, b) => Boolean(a && b) && a.toLowerCase() === b.toLowerCase();
+const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+const ETH = config.currency.symbol;
 
 /* ------------------------------------------------------------- state ----- */
 
@@ -72,12 +60,10 @@ const state = {
   providers: [],
   jobs: [],
   now: Math.floor(Date.now() / 1000),
-  slot: 0,
   account: "",
   wallet: null,
-  balance: null,
-  token: null,
-  roles: NO_ROLES,
+  chainOk: true,
+  roles: { verifier: false, arbitrator: false, pauser: false, admin: false, attestor: false },
   me: null,
   claimable: 0n,
   tab: "rent",
@@ -88,6 +74,7 @@ const state = {
   detailId: 0,
   detail: null,
   listingKey: "",
+  busy: false,
 };
 
 const store = {
@@ -135,16 +122,16 @@ function stamp(ts) {
 /* ------------------------------------------------------------ links ------ */
 
 function addressLink(address, label) {
-  if (!address || address === NO_KEY) return "None";
+  if (!address || address === ZERO_ADDRESS) return "None";
   const text = esc(label || shortAddress(address));
   const url = explorerAddress(address);
   const mine = same(address, state.account) ? ' <span class="you">you</span>' : "";
   return url ? `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>${mine}` : `${text}${mine}`;
 }
 
-const shortHash = (hash) => (hash && hash !== ZERO_HASH ? `${hash.slice(0, 8)}…${hash.slice(-6)}` : "None");
+const shortHash = (hash) => (hash && hash !== ZeroHash ? `${hash.slice(0, 10)}…${hash.slice(-6)}` : "None");
 
-/* ------------------------------------------------------------ actions ---- */
+/* ------------------------------------------------------ transactions ----- */
 
 function note(slot, html, tone = "") {
   const el = $(`[data-tx="${slot}"]`);
@@ -154,22 +141,52 @@ function note(slot, html, tone = "") {
   el.innerHTML = html;
 }
 
-const NOT_LIVE = "Solana execution is not live yet, so nothing was signed or sent.";
-
 /**
- * Where a transaction used to be sent. Every check before this point still
- * runs, and the control that started it shows what it would do. With
- * EXECUTION_LIVE false there is nothing to send to: no wallet signature is
- * requested and no transaction is built or broadcast. Always resolves null,
- * so no caller moves on as if something had happened onchain.
+ * Send one transaction through the connected wallet and report each stage
+ * under the control that started it. Resolves to the receipt, or null.
  */
-async function send(slot, preview) {
-  if (!state.account) {
+async function send(slot, build) {
+  if (!state.wallet) {
     await connect();
-    if (!state.account) return null;
+    if (!state.wallet) return null;
   }
-  if (!EXECUTION_LIVE) note(slot, `${esc(preview)}. ${NOT_LIVE}`, "wait");
-  return null;
+  if (state.busy) return null;
+  state.busy = true;
+  document.body.classList.add("is-busy");
+  try {
+    note(slot, "Confirm in your wallet.", "wait");
+    const signer = await signerFor(state.wallet.provider);
+    state.chainOk = true;
+    paintChain();
+    const tx = await build(signer);
+    const link = explorerTx(tx.hash);
+    note(slot, `Sent. Waiting for the block.${link ? ` <a href="${link}" target="_blank" rel="noopener noreferrer">View</a>` : ""}`, "wait");
+    const receipt = await tx.wait();
+    if (!receipt || receipt.status !== 1) throw new Error("reverted");
+    note(slot, `Confirmed.${link ? ` <a href="${link}" target="_blank" rel="noopener noreferrer">View transaction</a>` : ""}`, "ok");
+    await refresh();
+    return receipt;
+  } catch (error) {
+    console.warn("BRUT: transaction failed", error);
+    note(slot, esc(explain(error)), "error");
+    return null;
+  } finally {
+    state.busy = false;
+    document.body.classList.remove("is-busy");
+  }
+}
+
+function jobIdFrom(receipt) {
+  for (const log of receipt.logs || []) {
+    if (!same(log.address, config.marketAddress)) continue;
+    try {
+      const parsed = MARKET_IFACE.parseLog(log);
+      if (parsed && (parsed.name === "JobCreated" || parsed.name === "JobPosted")) return Number(parsed.args.jobId);
+    } catch {
+      /* another event */
+    }
+  }
+  return 0;
 }
 
 /* ------------------------------------------------------------ wallet ----- */
@@ -180,84 +197,48 @@ function paintWallet() {
   $("[data-wallet-connect]").classList.toggle("btn--quiet", Boolean(state.account));
 }
 
+function paintChain() {
+  $("[data-wrong-chain]").hidden = !state.account || state.chainOk;
+}
+
 function closeMenu() {
   $("[data-wallet-menu]").hidden = true;
 }
 
-function option(html, onClick, quiet = false) {
-  const li = document.createElement("li");
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `wallet__option${quiet ? " wallet__option--quiet" : ""}`;
-  button.innerHTML = html;
-  button.addEventListener("click", onClick);
-  li.append(button);
-  return li;
-}
-
-function linkOption(label, href) {
-  const li = document.createElement("li");
-  const a = document.createElement("a");
-  a.className = "wallet__option";
-  a.href = href;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.textContent = label;
-  li.append(a);
-  return li;
-}
-
-function paintBalance() {
-  const el = $("[data-wallet-balance]");
-  if (!state.account || state.balance === null) {
-    el.hidden = true;
-    return;
-  }
-  const parts = [`${sol(state.balance, 4)} ${SOL}`];
-  if (state.token) parts.push(`${formatUnits(state.token.amount, state.token.decimals, 4)} ${config.tokenSymbol}`);
-  el.textContent = `Balance ${parts.join(", ")}`;
-  el.hidden = false;
-}
-
 function openMenu() {
+  const list = wallets();
+  const menu = $("[data-wallet-menu]");
   const ul = $("[data-wallet-list]");
-  const address = $("[data-wallet-address]");
-  $("[data-wallet-title]").textContent = state.account ? "Connected wallet" : "Choose a wallet";
-  address.hidden = !state.account;
-  address.textContent = state.account;
-  paintBalance();
-
-  if (state.account) {
-    const copy = option("Copy address", async (event) => {
-      const button = event.currentTarget;
-      button.textContent = (await copyText(state.account)) ? "Copied" : "Select it above";
-      setTimeout(() => (button.textContent = "Copy address"), FEEDBACK_MS);
-    });
-    const url = explorerAddress(state.account);
-    const leave = option(
-      "Disconnect",
-      () => {
+  ul.replaceChildren(
+    ...list.map((w) => {
+      const li = document.createElement("li");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "wallet__option";
+      button.innerHTML = `${w.info.icon ? `<img src="${esc(w.info.icon)}" width="22" height="22" alt="">` : ""}<span>${esc(w.info.name)}</span>`;
+      button.addEventListener("click", () => {
         closeMenu();
-        disconnect();
-      },
-      true,
-    );
-    ul.replaceChildren(copy, ...(url ? [linkOption("View on Solana Explorer", url)] : []), leave);
-    $("[data-wallet-none]").hidden = true;
-  } else {
-    const list = wallets();
-    ul.replaceChildren(
-      ...list.map((w) =>
-        option(`${w.icon ? `<img src="${esc(w.icon)}" width="22" height="22" alt="">` : ""}<span>${esc(w.name)}</span>`, () => {
-          closeMenu();
-          useWallet(w, true);
-        }),
-      ),
-      ...(list.length ? [] : walletApps().map((app) => linkOption(app.name, app.href))),
-    );
-    $("[data-wallet-none]").hidden = list.length > 0;
+        useWallet(w, true);
+      });
+      li.append(button);
+      return li;
+    }),
+  );
+  if (state.account) {
+    const li = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "wallet__option wallet__option--quiet";
+    button.textContent = "Disconnect";
+    button.addEventListener("click", () => {
+      closeMenu();
+      disconnect();
+    });
+    li.append(button);
+    ul.append(li);
   }
-  $("[data-wallet-menu]").hidden = false;
+  $("[data-wallet-none]").hidden = list.length > 0;
+  menu.hidden = false;
 }
 
 async function connect() {
@@ -266,79 +247,61 @@ async function connect() {
   openMenu();
 }
 
-/**
- * Clipboard API where it works, a selected off screen textarea where it does
- * not, as on a phone opening the page over plain http.
- */
-async function copyText(text) {
-  if (navigator.clipboard && window.isSecureContext) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      /* fall through to the older path */
-    }
-  }
-  const area = document.createElement("textarea");
-  area.value = text;
-  area.setAttribute("readonly", "");
-  area.style.cssText = "position:fixed;top:0;opacity:0";
-  document.body.append(area);
-  area.select();
-  let ok = false;
-  try {
-    ok = document.execCommand("copy");
-  } catch {
-    ok = false;
-  }
-  area.remove();
-  return ok;
-}
+const bound = new WeakSet();
 
-let unwatch = () => {};
-
-/** Connect a wallet. With `prompt` false it only restores a trusted one. */
 async function useWallet(w, prompt) {
   try {
-    const account = await w.connect(!prompt);
-    if (!isPublicKey(account)) return;
-    unwatch();
+    await prepare(w);
+    let accounts;
+    if (w.init) {
+      /* WalletConnect: a new session opens the QR modal; a restored one is used as it is. */
+      accounts = w.provider.session ? w.provider.accounts : prompt ? await w.provider.enable() : [];
+    } else {
+      accounts = await w.provider.request({ method: prompt ? "eth_requestAccounts" : "eth_accounts" });
+    }
+    const account = Array.isArray(accounts) && accounts[0] ? getAddress(accounts[0]) : "";
+    if (!account) return;
     state.wallet = w;
     state.account = account;
-    store.set("wallet", w.id);
-    unwatch = w.onChange((next) => {
-      if (state.wallet !== w || next === state.account) return;
-      state.account = isPublicKey(next) ? next : "";
-      if (!state.account) state.wallet = null;
-      afterAccountChange();
-    });
+    store.set("wallet", w.info.uuid);
+    if (!bound.has(w.provider) && w.provider.on) {
+      bound.add(w.provider);
+      const current = () => state.wallet && state.wallet.provider === w.provider;
+      w.provider.on("accountsChanged", (next) => {
+        if (!current()) return;
+        state.account = Array.isArray(next) && next[0] ? getAddress(next[0]) : "";
+        if (!state.account) state.wallet = null;
+        afterAccountChange();
+      });
+      w.provider.on("chainChanged", (chainId) => {
+        if (!current()) return;
+        state.chainOk = Number(chainId) === config.chainId;
+        paintChain();
+      });
+    }
+    const chainId = await w.provider.request({ method: "eth_chainId" });
+    state.chainOk = Number(chainId) === config.chainId;
     afterAccountChange();
   } catch (error) {
-    if (prompt) console.warn("BRUT: wallet connect failed", error);
+    if (prompt && error && error.code !== 4001) console.warn("BRUT: wallet connect failed", error);
   }
 }
 
 function disconnect() {
-  const w = state.wallet;
-  unwatch();
-  unwatch = () => {};
+  release(state.wallet);
   state.wallet = null;
   state.account = "";
   store.set("wallet", "");
   afterAccountChange();
-  if (w) w.disconnect().catch(() => {});
 }
 
 function afterAccountChange() {
   state.me = null;
-  state.balance = null;
-  state.token = null;
   state.listingKey = "";
   state.jobsFilter = state.account ? "mine" : "all";
   $$("[data-jobs-filter]").forEach((c) => c.classList.toggle("is-on", c.dataset.jobsFilter === state.jobsFilter));
   paintWallet();
-  settle();
-  paintAll();
+  paintChain();
   refresh();
 }
 
@@ -347,56 +310,51 @@ function afterAccountChange() {
 let refreshing = null;
 let again = false;
 
-/** A connected wallet before any listing exists: not registered. */
-function unregistered(address) {
-  return { address, registered: false, available: false, eligible: false, attested: false };
-}
-
 /**
- * The market side of the state. It needs no network: with no BRUT program
- * there is nothing listed, and a connected wallet is simply not registered.
- */
-function settle() {
-  state.protocol = MARKET_NOT_LIVE;
-  state.now = Math.floor(Date.now() / 1000);
-  state.providers = [];
-  state.jobs = [];
-  state.picked = null;
-  state.roles = NO_ROLES;
-  state.claimable = 0n;
-  state.me = state.account ? unregistered(state.account) : null;
-}
-
-/**
- * Read everything again. A call that arrives mid read, after an account
- * change, queues one more pass so it never gets stale results.
- *
- * With no BRUT program deployed the only reads are the slot and, for a
- * connected wallet, its SOL and token balances: two or three light calls.
+ * Read everything again. A call that arrives mid read, after an account change
+ * or a transaction, queues one more pass so it never gets stale results.
  */
 function refresh() {
+  if (!isLive) return Promise.resolve();
   if (refreshing) {
     again = true;
     return refreshing.then(() => (again ? refresh() : undefined));
   }
   again = false;
   refreshing = (async () => {
-    settle();
-    paintAll();
     try {
-      const account = state.account;
-      const [slot, holdings] = await Promise.all([readSlot(), account ? readAccount(account) : null]);
-      state.slot = slot;
-      if (holdings && account === state.account) {
-        state.balance = holdings.balance;
-        state.token = holdings.token;
+      const [protocol, now] = await Promise.all([readProtocol(), readNow()]);
+      state.protocol = protocol;
+      state.now = now;
+      const [providers, jobs] = await Promise.all([
+        readProviders(protocol.jobCollateral, protocol.providerCount),
+        readJobs(protocol.jobCount),
+      ]);
+      state.providers = providers;
+      state.jobs = jobs;
+      if (state.picked) state.picked = providers.find((p) => same(p.address, state.picked.address)) || null;
+
+      if (state.account) {
+        const [me, roles, account] = await Promise.all([
+          readProvider(state.account, protocol.jobCollateral),
+          readRoles(state.account),
+          readAccount(state.account),
+        ]);
+        state.me = me;
+        state.roles = roles;
+        state.claimable = account.claimable;
+      } else {
+        state.me = null;
+        state.roles = { verifier: false, arbitrator: false, pauser: false, admin: false, attestor: false };
+        state.claimable = 0n;
       }
+      if (state.detailId) state.detail = await readJob(state.detailId);
       paintNetwork("live");
+      paintAll();
     } catch (error) {
       console.warn("BRUT: read failed", error);
       paintNetwork("error");
     } finally {
-      paintBalance();
       refreshing = null;
     }
   })();
@@ -420,15 +378,15 @@ function paintNetwork(mode) {
   const strip = $("[data-network-state]");
   const label = $("[data-network-label]");
   const detail = $("[data-network-detail]");
-  if (!config.rpcUrl) {
+  if (!isLive) {
     strip.dataset.networkState = "error";
-    label.textContent = "Solana RPC not configured";
+    label.textContent = "Contracts not configured";
     detail.textContent = "";
     return;
   }
   strip.dataset.networkState = mode;
-  label.textContent = mode === "error" ? "Solana not answering" : "Solana";
-  detail.textContent = state.slot ? `${config.networkName} · slot ${state.slot.toLocaleString("en-US")}` : config.networkName;
+  label.textContent = mode === "error" ? "Network not answering" : config.network;
+  detail.textContent = `Chain ${config.chainId}`;
 }
 
 function paintVitals() {
@@ -437,14 +395,13 @@ function paintVitals() {
   $("[data-vitals]").hidden = false;
   $('[data-vital="providers"]').textContent = String(p.providerCount);
   $('[data-vital="jobs"]').textContent = String(p.jobCount);
-  $('[data-vital="collateral"]').textContent = solOr(p.jobCollateral);
-  $('[data-vital="bond"]').textContent = solOr(p.disputeBond);
+  $('[data-vital="collateral"]').textContent = `${eth(p.jobCollateral)} ${ETH}`;
+  $('[data-vital="bond"]').textContent = `${eth(p.disputeBond)} ${ETH}`;
   $("[data-paused]").hidden = !p.paused;
-  $("[data-not-live]").hidden = EXECUTION_LIVE;
 
   const claim = $("[data-claim]");
   claim.hidden = !(state.claimable > 0n);
-  $("[data-claim-amount]").textContent = `${sol(state.claimable)} ${SOL}`;
+  $("[data-claim-amount]").textContent = `${eth(state.claimable)} ${ETH}`;
 
   const opTab = $('[data-tab="operate"]');
   const anyRole = Object.values(state.roles).some(Boolean);
@@ -504,11 +461,11 @@ function providerRow(p) {
     <td><span class="who">${addressLink(p.address)}</span></td>
     <td>${esc(p.gpu)}</td>
     <td><span class="free${p.eligible ? "" : " is-none"}">${p.gpuCount}</span>${status}</td>
-    <td class="rate">${sol(p.pricePerGpuHour)} ${SOL}</td>
+    <td class="rate">${eth(p.pricePerGpuHour)} ${ETH}</td>
     <td>${esc(p.region)}</td>
     <td>${hardware}</td>
     <td>${p.completedJobs}${p.failedJobs ? ` <span class="muted">${p.failedJobs} failed</span>` : ""}</td>
-    <td>${sol(p.stake, 4)} ${SOL}</td>
+    <td>${eth(p.stake, 4)} ${ETH}</td>
     <td><button class="pick" type="button" ${p.eligible ? "" : "disabled"}>${picked ? "Picked" : p.eligible ? "Select" : "Unavailable"}</button></td>`;
   if (p.eligible) $(".pick", tr).addEventListener("click", () => pick(p));
   return tr;
@@ -564,14 +521,14 @@ function readForm() {
     milestones: Math.floor(Number(v("milestones")) || 0),
     workload: v("workload").trim(),
     requireAttestation: $('[data-field="attest"]').checked,
-    maxPrice: parseSol(v("max")) || 0n,
+    maxPrice: parseAmount(v("max")) || 0n,
     region: v("region"),
     biddingHours: Math.floor(Number(v("bidding")) || 0),
   };
 }
 
 function problem(form) {
-  if (!state.protocol) return "Reading Solana.";
+  if (!state.protocol) return "Reading the contracts.";
   if (state.protocol.paused) return "New jobs are paused right now.";
   if (state.mode === "direct") return hireProblem(form, state.picked, state.account);
   return postProblem(form, state.protocol.maxBiddingPeriod);
@@ -582,28 +539,28 @@ function paintQuote() {
   const set = (slot, html) => ($(`[data-quote="${slot}"]`).innerHTML = html);
   const hours = Math.max(0, form.gpuCount) * Math.max(0, form.durationHours);
   set("hours", String(hours));
-  set("collateral", state.protocol ? solOr(state.protocol.jobCollateral) : "0");
+  set("collateral", state.protocol ? `${eth(state.protocol.jobCollateral)} ${ETH}` : "0");
 
   let total = 0n;
   if (state.mode === "direct") {
     set("provider", state.picked ? addressLink(state.picked.address) : "None selected");
-    set("rate", state.picked ? `${sol(state.picked.pricePerGpuHour)} ${SOL}` : "Select a provider");
+    set("rate", state.picked ? `${eth(state.picked.pricePerGpuHour)} ${ETH}` : "Select a provider");
     set("total-label", "Locked on funding");
     total = state.picked ? cost(state.picked.pricePerGpuHour, form.gpuCount, form.durationHours) : 0n;
   } else {
     set("provider", "Chosen from bids");
-    set("rate", form.maxPrice ? `Up to ${sol(form.maxPrice)} ${SOL}` : "Set a maximum");
+    set("rate", form.maxPrice ? `Up to ${eth(form.maxPrice)} ${ETH}` : "Set a maximum");
     set("total-label", "Budget locked now");
     total = cost(form.maxPrice, form.gpuCount, form.durationHours);
   }
-  set("total", `${sol(total)} ${SOL}`);
+  set("total", `${eth(total)} ${ETH}`);
 
   const reason = problem(form);
   const button = $("[data-fund]");
   button.disabled = Boolean(reason);
   const label = $("[data-fund-label]");
   if (reason) label.textContent = state.mode === "direct" && !state.picked ? "Select a provider first" : "Cannot fund yet";
-  else label.textContent = state.mode === "direct" ? `Lock ${sol(total)} ${SOL} in escrow` : `Post job with ${sol(total)} ${SOL}`;
+  else label.textContent = state.mode === "direct" ? `Lock ${eth(total)} ${ETH} in escrow` : `Post job with ${eth(total)} ${ETH}`;
 
   $("[data-escrow-rule]").textContent =
     state.mode === "direct"
@@ -619,13 +576,43 @@ function paintQuote() {
 async function fund() {
   const form = readForm();
   if (problem(form)) return;
+  const workloadHash = toBytes32(form.workload);
+  let receipt;
   if (state.mode === "direct") {
     const p = state.picked;
     const value = cost(p.pricePerGpuHour, form.gpuCount, form.durationHours);
-    await send("fund", `Preview: lock ${sol(value)} ${SOL} in escrow for ${shortAddress(p.address)}`);
+    receipt = await send("fund", (signer) =>
+      market
+        .connect(signer)
+        .createJob(p.address, p.gpuId, form.gpuCount, form.durationHours, form.milestones, form.requireAttestation, workloadHash, { value }),
+    );
   } else {
     const value = cost(form.maxPrice, form.gpuCount, form.durationHours);
-    await send("fund", `Preview: post a job for ${form.gpuCount} × ${gpuName(form.gpu)} with a ${sol(value)} ${SOL} budget`);
+    const region = form.region ? labelHash(form.region) : ZeroHash;
+    receipt = await send("fund", (signer) =>
+      market
+        .connect(signer)
+        .postOpenJob(
+          labelHash(form.gpu),
+          form.gpuCount,
+          form.durationHours,
+          form.maxPrice,
+          region,
+          form.milestones,
+          form.requireAttestation,
+          workloadHash,
+          form.biddingHours * 3600,
+          { value },
+        ),
+    );
+  }
+  if (!receipt) return;
+  const id = jobIdFrom(receipt);
+  if (id) {
+    const refs = store.get("workloads", {});
+    refs[`${config.chainId}:${id}`] = form.workload;
+    store.set("workloads", refs);
+    openJob(id);
   }
 }
 
@@ -636,7 +623,7 @@ function listingForm(prefix) {
   return {
     gpu: v("gpu"),
     count: Math.floor(Number(v("count")) || 0),
-    price: parseSol(v("price")),
+    price: parseAmount(v("price")),
     region: v("region"),
     meta: v("meta").trim(),
   };
@@ -660,13 +647,9 @@ function paintProvide() {
 
   if (!reg.hidden && p) {
     const hint = $("[data-reg-stake-hint]");
+    hint.textContent = `At least ${eth(p.minStake)} ${ETH} to take jobs, plus ${eth(p.jobCollateral)} ${ETH} per job at once.`;
     const stake = $('[data-reg="stake"]');
-    if (p.minStake === null || p.jobCollateral === null) {
-      hint.textContent = "The minimum stake is set when Solana execution goes live.";
-    } else {
-      hint.textContent = `At least ${sol(p.minStake)} ${SOL} to take jobs, plus ${sol(p.jobCollateral)} ${SOL} per job at once.`;
-      if (!stake.value) stake.value = sol(p.minStake + p.jobCollateral, 9).replace(/,/g, "");
-    }
+    if (!stake.value) stake.value = eth(p.minStake + p.jobCollateral, 18).replace(/,/g, "");
     paintRegister();
   }
 
@@ -675,7 +658,7 @@ function paintProvide() {
 
 function paintRegister() {
   const f = listingForm("reg");
-  const stake = parseSol($('[data-reg="stake"]').value);
+  const stake = parseAmount($('[data-reg="stake"]').value);
   let reason = listingProblem(f);
   if (!reason && stake === null && $('[data-reg="stake"]').value.trim()) reason = "Enter the stake as a number.";
   const err = $("[data-reg-error]");
@@ -683,21 +666,24 @@ function paintRegister() {
   err.textContent = reason;
   $("[data-register]").disabled = Boolean(reason);
   const label = $("[data-register-label]");
-  label.textContent = stake ? `Register with ${sol(stake)} ${SOL} stake` : "Register listing";
+  label.textContent = stake ? `Register with ${eth(stake)} ${ETH} stake` : "Register listing";
 }
 
 async function register() {
   const f = listingForm("reg");
   if (listingProblem(f)) return;
-  const stake = parseSol($('[data-reg="stake"]').value) || 0n;
-  await send("register", `Preview: list ${f.count} × ${gpuName(f.gpu)} with ${sol(stake)} ${SOL} stake`);
+  const stake = parseAmount($('[data-reg="stake"]').value) || 0n;
+  await send("register", (signer) =>
+    registry
+      .connect(signer)
+      .register(labelHash(f.gpu), f.count, f.price, f.region ? labelHash(f.region) : ZeroHash, toBytes32(f.meta), { value: stake }),
+  );
 }
 
 function whyIneligible(me, p) {
   if (!me.available) return "You are offline. Go online to take jobs and bid.";
-  if (p.minStake === null || p.jobCollateral === null) return "";
-  if (me.stake < p.minStake) return `Stake below the ${sol(p.minStake)} ${SOL} minimum. Add stake to take jobs.`;
-  if (me.freeStake < p.jobCollateral) return `Free stake below one job's ${sol(p.jobCollateral)} ${SOL} collateral.`;
+  if (me.stake < p.minStake) return `Stake below the ${eth(p.minStake)} ${ETH} minimum. Add stake to take jobs.`;
+  if (me.freeStake < p.jobCollateral) return `Free stake below one job's ${eth(p.jobCollateral)} ${ETH} collateral.`;
   return "";
 }
 
@@ -705,15 +691,15 @@ function paintDashboard() {
   const me = state.me;
   const p = state.protocol;
   const set = (slot, html) => ($(`[data-me="${slot}"]`).innerHTML = html);
-  set("title", `${esc(me.gpu)} × ${me.gpuCount}, ${sol(me.pricePerGpuHour)} ${SOL} per GPU hour`);
+  set("title", `${esc(me.gpu)} × ${me.gpuCount}, ${eth(me.pricePerGpuHour)} ${ETH} per GPU hour`);
   set("status", me.eligible ? "Taking jobs" : me.available ? "Online, not eligible" : "Offline");
   set("hardware", me.attested ? '<span class="stamp stamp--attested">Attested</span>' : '<span class="stamp stamp--reported">Reported</span>');
-  set("stake", `${sol(me.stake)} ${SOL}`);
-  set("free", `${sol(me.freeStake)} ${SOL}`);
-  set("locked", `${sol(me.lockedStake)} ${SOL}`);
+  set("stake", `${eth(me.stake)} ${ETH}`);
+  set("free", `${eth(me.freeStake)} ${ETH}`);
+  set("locked", `${eth(me.lockedStake)} ${ETH}`);
   set("done", String(me.completedJobs));
   set("failed", String(me.failedJobs));
-  set("slashed", me.slashCount ? `${sol(me.slashedTotal)} ${SOL}` : "Never");
+  set("slashed", me.slashCount ? `${eth(me.slashedTotal)} ${ETH}` : "Never");
   set("why", esc(p ? whyIneligible(me, p) : ""));
   $("[data-availability]").textContent = me.available ? "Go offline" : "Go online";
 
@@ -724,7 +710,7 @@ function paintDashboard() {
     const region = config.regions.find((r) => labelHash(r) === me.regionId);
     if (gpu) $('[data-upd="gpu"]').value = gpu;
     $('[data-upd="count"]').value = String(me.gpuCount);
-    $('[data-upd="price"]').value = sol(me.pricePerGpuHour, 9).replace(/,/g, "");
+    $('[data-upd="price"]').value = eth(me.pricePerGpuHour, 18).replace(/,/g, "");
     $('[data-upd="region"]').value = region || "";
   }
 }
@@ -734,25 +720,30 @@ async function saveListing(event) {
   const f = listingForm("upd");
   const reason = listingProblem(f);
   if (reason) return note("listing", esc(reason), "error");
-  await send("listing", `Preview: update to ${f.count} × ${gpuName(f.gpu)} at ${sol(f.price)} ${SOL} per GPU hour`);
+  const meta = f.meta ? toBytes32(f.meta) : state.me.metadataHash;
+  await send("listing", (signer) =>
+    registry.connect(signer).updateListing(labelHash(f.gpu), f.count, f.price, f.region ? labelHash(f.region) : ZeroHash, meta),
+  );
 }
 
 async function toggleAvailability() {
   if (!state.me) return;
-  await send("availability", state.me.available ? "Preview: take the listing offline" : "Preview: put the listing online");
+  await send("availability", (signer) => registry.connect(signer).setAvailability(!state.me.available));
 }
 
 async function deposit() {
-  const amount = parseSol($("[data-deposit-amount]").value);
-  if (!amount) return note("deposit", "Enter an amount in SOL.", "error");
-  await send("deposit", `Preview: add ${sol(amount)} ${SOL} of stake`);
+  const amount = parseAmount($("[data-deposit-amount]").value);
+  if (!amount) return note("deposit", "Enter an amount in ETH.", "error");
+  const ok = await send("deposit", (signer) => registry.connect(signer).depositStake({ value: amount }));
+  if (ok) $("[data-deposit-amount]").value = "";
 }
 
 async function withdraw() {
-  const amount = parseSol($("[data-withdraw-amount]").value);
-  if (!amount) return note("withdraw", "Enter an amount in SOL.", "error");
-  if (state.me && amount > state.me.freeStake) return note("withdraw", `At most ${sol(state.me.freeStake)} ${SOL} is free.`, "error");
-  await send("withdraw", `Preview: withdraw ${sol(amount)} ${SOL} of free stake`);
+  const amount = parseAmount($("[data-withdraw-amount]").value);
+  if (!amount) return note("withdraw", "Enter an amount in ETH.", "error");
+  if (state.me && amount > state.me.freeStake) return note("withdraw", `At most ${eth(state.me.freeStake)} ${ETH} is free.`, "error");
+  const ok = await send("withdraw", (signer) => registry.connect(signer).withdrawStake(amount));
+  if (ok) $("[data-withdraw-amount]").value = "";
 }
 
 function paintBoard() {
@@ -765,7 +756,7 @@ function paintBoard() {
         <td>${esc(j.gpu)}</td>
         <td>${j.gpuCount}</td>
         <td>${j.durationHours}</td>
-        <td class="rate">${sol(j.pricePerGpuHour)} ${SOL}</td>
+        <td class="rate">${eth(j.pricePerGpuHour)} ${ETH}</td>
         <td>${esc(j.region)}</td>
         <td>${when(j.openUntil)}</td>
         <td>${j.requireAttestation ? '<span class="stamp stamp--attested">Attested only</span>' : "Any"}</td>
@@ -823,8 +814,8 @@ function paintJobs() {
         <td>${statusPill(j)}</td>
         <td>${esc(j.gpu)} × ${j.gpuCount}</td>
         <td>${addressLink(j.buyer)}</td>
-        <td>${j.provider === NO_KEY ? '<span class="muted">Taking bids</span>' : addressLink(j.provider)}</td>
-        <td>${sol(j.escrow)} ${SOL}</td>
+        <td>${j.provider === ZERO_ADDRESS ? '<span class="muted">Taking bids</span>' : addressLink(j.provider)}</td>
+        <td>${eth(j.escrow)} ${ETH}</td>
         <td>${roleIn(j) || '<span class="muted">None</span>'}</td>
         <td><button class="pick" type="button">Open</button></td>`;
       $(".pick", tr).addEventListener("click", () => openJob(j.id));
@@ -849,9 +840,13 @@ async function openJob(id) {
   $("[data-verify-result]").textContent = "";
   paintJobs();
   $("[data-detail]").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" });
-  state.detail =state.jobs.find((j) => j.id === id) || null;
-  if (state.detail) paintDetail();
-  else $("[data-detail-title]").textContent = `Job #${id} was not found on Solana`;
+  try {
+    state.detail = await readJob(id);
+    paintDetail();
+  } catch (error) {
+    console.warn("BRUT: job read failed", error);
+    $("[data-detail-title]").textContent = `Job #${id} could not be read`;
+  }
 }
 
 function closeJob() {
@@ -881,21 +876,21 @@ function paintStates(job) {
   );
 }
 
-/** The evidence trail, rebuilt from what the program recorded. */
+/** The evidence trail, rebuilt from what the contracts recorded. */
 function traceOf(job) {
   const out = [];
   const add = (tone, label, title, detail, ts) => out.push({ tone, label, title, detail, ts });
   const onchain = "Verified onchain";
 
   if (job.viaBid) {
-    add("onchain", onchain, `Posted for bids with a ${sol(job.funded)} ${SOL} budget.`, `bidding ${job.openUntil > state.now ? "closes" : "closed"} ${stamp(job.openUntil)}`, 0);
+    add("onchain", onchain, `Posted for bids with a ${eth(job.funded)} ${ETH} budget.`, `bidding ${job.openUntil > state.now ? "closes" : "closed"} ${stamp(job.openUntil)}`, 0);
   }
-  if (job.status !== "Open" && job.provider !== NO_KEY) {
+  if (job.status !== "Open" && job.provider !== ZERO_ADDRESS) {
     add(
       "onchain",
       onchain,
-      `Escrow of ${sol(job.funded)} ${SOL} locked for ${shortAddress(job.provider)}.`,
-      `${sol(job.pricePerGpuHour)} ${SOL} per GPU hour · ${sol(job.collateral)} ${SOL} provider collateral`,
+      `Escrow of ${eth(job.funded)} ${ETH} locked for ${shortAddress(job.provider)}.`,
+      `${eth(job.pricePerGpuHour)} ${ETH} per GPU hour · ${eth(job.collateral)} ${ETH} provider collateral`,
       job.createdAt,
     );
   }
@@ -907,9 +902,9 @@ function traceOf(job) {
   }
   if (job.milestonesPaid) {
     const paid = tranches(job.funded, job.milestones).slice(0, job.milestonesPaid).reduce((a, b) => a + b, 0n);
-    add("onchain", onchain, `${job.milestonesPaid} of ${job.milestones} milestones paid.`, `${sol(paid)} ${SOL} released to the provider`, 0);
+    add("onchain", onchain, `${job.milestonesPaid} of ${job.milestones} milestones paid.`, `${eth(paid)} ${ETH} released to the provider`, 0);
   }
-  if (job.resultHash !== ZERO_HASH) {
+  if (job.resultHash !== ZeroHash) {
     add("reported", "Reported", "Provider submitted its output hash.", `${shortHash(job.resultHash)} · verdict due ${stamp(job.verdictDueBy)}`, 0);
   }
   const v = job.verification;
@@ -925,7 +920,7 @@ function traceOf(job) {
   }
   const d = job.dispute;
   if (d.raisedAt) {
-    add("onchain", onchain, `${same(d.disputant, job.buyer) ? "Buyer" : "Provider"} disputed the verdict.`, `${d.bond > 0n ? `bond ${sol(d.bond)} ${SOL} · ` : ""}decide by ${stamp(d.resolveBy)}`, d.raisedAt);
+    add("onchain", onchain, `${same(d.disputant, job.buyer) ? "Buyer" : "Provider"} disputed the verdict.`, `${d.bond > 0n ? `bond ${eth(d.bond)} ${ETH} · ` : ""}decide by ${stamp(d.resolveBy)}`, d.raisedAt);
     if (d.resolved) {
       add(
         "onchain",
@@ -960,7 +955,7 @@ function traceOf(job) {
 
 /**
  * Whether a failed job took the provider's collateral, following the fault
- * rules for settling, expiring and resolving a dispute over a job.
+ * rules in ComputeMarketplace.finalize, failExpiredJob and resolveDispute.
  */
 function providerSlashed(job) {
   /* A decided dispute may or may not slash; the record does not say which. */
@@ -987,16 +982,16 @@ function paintDetail() {
     }),
   );
 
-  const ref = store.get("workloads", {})[`${config.network}:${job.id}`];
+  const ref = store.get("workloads", {})[`${config.chainId}:${job.id}`];
   const rows = [
     ["Buyer", addressLink(job.buyer)],
-    ["Provider", job.provider === NO_KEY ? "Taking bids" : addressLink(job.provider)],
+    ["Provider", job.provider === ZERO_ADDRESS ? "Taking bids" : addressLink(job.provider)],
     ["GPU", `${esc(job.gpu)} × ${job.gpuCount}`],
     ["Region", esc(job.region)],
     ["Duration", `${job.durationHours} hours`],
-    [job.status === "Open" ? "Most per GPU hour" : "Per GPU hour", `${sol(job.pricePerGpuHour)} ${SOL}`],
-    ["Funded", `${sol(job.funded)} ${SOL}`],
-    ["Still in escrow", `${sol(job.escrow)} ${SOL}`],
+    [job.status === "Open" ? "Most per GPU hour" : "Per GPU hour", `${eth(job.pricePerGpuHour)} ${ETH}`],
+    ["Funded", `${eth(job.funded)} ${ETH}`],
+    ["Still in escrow", `${eth(job.escrow)} ${ETH}`],
     ["Milestones", `${job.milestonesPaid} of ${job.milestones} paid`],
     ["Attestation", job.requireAttestation ? "Required" : "Not required"],
     ["Workload hash", `<span class="mono">${shortHash(job.workloadHash)}</span>`],
@@ -1035,7 +1030,7 @@ function paintActions(job) {
         `<ul class="bids">${job.bids
           .map(
             (b) =>
-              `<li><span>${addressLink(b.provider)}</span><span class="rate">${sol(b.price)} ${SOL}</span><span>${sol(cost(b.price, job.gpuCount, job.durationHours))} ${SOL} total</span>${
+              `<li><span>${addressLink(b.provider)}</span><span class="rate">${eth(b.price)} ${ETH}</span><span>${eth(cost(b.price, job.gpuCount, job.durationHours))} ${ETH} total</span>${
                 isBuyer ? `<button class="pick" type="button" data-act="accept" data-provider="${b.provider}">Accept</button>` : ""
               }</li>`,
           )
@@ -1050,9 +1045,9 @@ function paintActions(job) {
       if (state.me && state.me.registered) {
         parts.push(`
           <div class="field">
-            <label for="bid-price">Your price per GPU hour, in SOL</label>
+            <label for="bid-price">Your price per GPU hour, in ETH</label>
             <div class="inline">
-              <input id="bid-price" type="text" inputmode="decimal" autocomplete="off" data-input="bid" value="${mine ? sol(mine.price, 9).replace(/,/g, "") : ""}" placeholder="At most ${sol(job.pricePerGpuHour)}">
+              <input id="bid-price" type="text" inputmode="decimal" autocomplete="off" data-input="bid" value="${mine ? eth(mine.price, 18).replace(/,/g, "") : ""}" placeholder="At most ${eth(job.pricePerGpuHour)}">
               <button class="btn" type="button" data-act="bid">${mine ? "Change bid" : "Place bid"}</button>
             </div>
           </div>`);
@@ -1076,7 +1071,7 @@ function paintActions(job) {
           <div class="field">
             <label for="result-ref">Output hash or result reference</label>
             <div class="inline">
-              <input id="result-ref" type="text" spellcheck="false" autocomplete="off" data-input="result" placeholder="Hash, URL or path">
+              <input id="result-ref" type="text" spellcheck="false" autocomplete="off" data-input="result" placeholder="0x hash, URL or path">
               <button class="btn" type="button" data-act="result">Submit result</button>
             </div>
           </div>`);
@@ -1092,8 +1087,7 @@ function paintActions(job) {
     const windowEnds = v.verdictAt + job.disputeWindow;
     const disputant = v.success ? job.buyer : job.provider;
     if (same(disputant, me) && state.now <= windowEnds) {
-      const bond = p.disputeBond === null ? "Raise a dispute" : `Dispute with a ${sol(p.disputeBond)} ${SOL} bond`;
-      parts.push(button("dispute", bond, true), text(`The window closes ${when(windowEnds)}.`));
+      parts.push(button("dispute", `Dispute with a ${eth(p.disputeBond)} ${ETH} bond`, true), text(`The window closes ${when(windowEnds)}.`));
     }
     if (!job.finalizable) parts.push(text(`Anyone can settle it ${when(windowEnds)}.`));
   }
@@ -1119,7 +1113,7 @@ function verifierForm(job) {
           <label for="ms-evidence">Milestone evidence</label>
           <div class="inline">
             <input id="ms-evidence" type="text" spellcheck="false" autocomplete="off" data-input="milestone" placeholder="Report URL or hash">
-            <button class="btn btn--quiet" type="button" data-act="milestone">Release ${sol(tranches(job.funded, job.milestones)[job.milestonesPaid])} ${SOL}</button>
+            <button class="btn btn--quiet" type="button" data-act="milestone">Release ${eth(tranches(job.funded, job.milestones)[job.milestonesPaid])} ${ETH}</button>
           </div>
         </div>`
       : "";
@@ -1129,7 +1123,7 @@ function verifierForm(job) {
       ${milestone}
       <div class="field">
         <label for="vd-output">Output hash</label>
-        <input id="vd-output" type="text" spellcheck="false" autocomplete="off" data-input="output" value="${job.resultHash !== ZERO_HASH ? job.resultHash : ""}">
+        <input id="vd-output" type="text" spellcheck="false" autocomplete="off" data-input="output" value="${job.resultHash !== ZeroHash ? job.resultHash : ""}">
       </div>
       <div class="field">
         <label for="vd-evidence">Evidence reference</label>
@@ -1169,53 +1163,54 @@ async function act(event) {
   if (!job) return;
   const id = job.id;
   const input = (name) => $(`[data-input="${name}"]`);
-  const preview = (what) => send("action", `Preview: ${what} for job #${id}`);
+  const m = (signer) => market.connect(signer);
 
   switch (target.dataset.act) {
     case "accept":
-      return preview(`accept the bid from ${shortAddress(target.dataset.provider)}`);
+      return send("action", (s) => m(s).acceptBid(id, target.dataset.provider));
     case "cancel":
-      return preview("cancel and refund");
+      return send("action", (s) => m(s).cancelJob(id));
     case "bid": {
-      const price = parseSol(input("bid").value);
-      if (!price) return note("action", "Enter your price in SOL.", "error");
-      if (price > job.pricePerGpuHour) return note("action", `The buyer pays at most ${sol(job.pricePerGpuHour)} ${SOL}.`, "error");
-      return preview(`bid ${sol(price)} ${SOL} per GPU hour`);
+      const price = parseAmount(input("bid").value);
+      if (!price) return note("action", "Enter your price in ETH.", "error");
+      if (price > job.pricePerGpuHour) return note("action", `The buyer pays at most ${eth(job.pricePerGpuHour)} ${ETH}.`, "error");
+      return send("action", (s) => m(s).placeBid(id, price));
     }
     case "withdraw-bid":
-      return preview("withdraw your bid");
+      return send("action", (s) => m(s).withdrawBid(id));
     case "start":
-      return preview("start the run");
+      return send("action", (s) => m(s).startJob(id));
     case "heartbeat":
-      return preview("record a heartbeat");
+      return send("action", (s) => m(s).heartbeat(id));
     case "result": {
-      const hash = toDigest(input("result").value);
-      if (hash === ZERO_HASH) return note("action", "Enter the output hash or a reference to it.", "error");
-      return preview(`submit output ${shortHash(hash)}`);
+      const hash = toBytes32(input("result").value);
+      if (hash === ZeroHash) return note("action", "Enter the output hash or a reference to it.", "error");
+      return send("action", (s) => m(s).submitResult(id, hash));
     }
     case "milestone":
-      return preview("release the next milestone");
+      return send("action", (s) => m(s).releaseMilestone(id, toBytes32(input("milestone").value)));
     case "verdict-ok":
     case "verdict-bad": {
       const success = target.dataset.act === "verdict-ok";
-      const output = toDigest(input("output").value);
-      const attestation = toDigest(input("attestation").value);
-      if (success && output === ZERO_HASH) return note("action", "A valid verdict needs the output hash.", "error");
-      const attested = attestation !== ZERO_HASH;
-      if (success && job.requireAttestation && !attested) return note("action", "This job needs an attestation reference.", "error");
-      return preview(`record ${success ? "a valid" : "an invalid"}${attested ? " attested" : ""} verdict`);
+      const output = toBytes32(input("output").value);
+      const evidence = toBytes32(input("evidence").value);
+      const attestation = toBytes32(input("attestation").value);
+      if (success && output === ZeroHash) return note("action", "A valid verdict needs the output hash.", "error");
+      const level = attestation !== ZeroHash ? 2 : 1;
+      if (success && job.requireAttestation && level !== 2) return note("action", "This job needs an attestation reference.", "error");
+      return send("action", (s) => m(s).submitVerdict(id, success, output, evidence, attestation, level));
     }
     case "dispute":
-      return preview("raise a dispute");
+      return send("action", (s) => m(s).raiseDispute(id, { value: state.protocol.disputeBond }));
     case "resolve": {
       const pct = Number(input("share").value);
       if (!Number.isFinite(pct) || pct < 0 || pct > 100) return note("action", "Enter a share from 0 to 100.", "error");
-      return preview(`resolve with a ${pct}% provider share`);
+      return send("action", (s) => m(s).resolveDispute(id, Math.round(pct * 100), input("slash").checked, input("upheld").checked));
     }
     case "finalize":
-      return preview("settle");
+      return send("action", (s) => m(s).finalize(id));
     case "expire":
-      return preview("fail the expired run and refund");
+      return send("action", (s) => m(s).failExpiredJob(id));
     default:
       return undefined;
   }
@@ -1230,7 +1225,7 @@ function verifyWorkload() {
     out.textContent = "Paste a reference to check it.";
     return;
   }
-  out.textContent = toDigest(value) === job.workloadHash ? "It matches the hash the buyer committed." : "It does not match this job.";
+  out.textContent = toBytes32(value) === job.workloadHash ? "It matches the hash the buyer committed." : "It does not match this job.";
 }
 
 /* ------------------------------------------------------------ operate ---- */
@@ -1265,32 +1260,41 @@ function paintOperate() {
   };
   queue(
     "verdict",
-    state.jobs.filter((j) => j.status === "Running").sort((a, b) => Number(b.resultHash !== ZERO_HASH) - Number(a.resultHash !== ZERO_HASH)),
+    state.jobs.filter((j) => j.status === "Running").sort((a, b) => Number(b.resultHash !== ZeroHash) - Number(a.resultHash !== ZeroHash)),
     (j) => (j.verdictDueBy ? `Result in, verdict due ${when(j.verdictDueBy)}` : `Running, deadline ${when(j.deadline)}`),
   );
   queue(
     "dispute",
     state.jobs.filter((j) => j.status === "Disputed"),
-    (j) => `${j.gpu} × ${j.gpuCount}, ${sol(j.escrow)} ${SOL} in escrow`,
+    (j) => `${j.gpu} × ${j.gpuCount}, ${eth(j.escrow)} ${ETH} in escrow`,
   );
 }
 
 async function attest(clear) {
-  const provider = $('[data-att="provider"]').value.trim();
-  if (!isPublicKey(provider)) return note("attest", "Enter a valid provider public key.", "error");
-  if (clear) return send("attest", `Preview: clear the attestation of ${shortAddress(provider)}`);
-  const ref = toDigest($('[data-att="ref"]').value);
-  if (ref === ZERO_HASH) return note("attest", "Enter the attestation reference.", "error");
-  return send("attest", `Preview: attest the hardware of ${shortAddress(provider)}`);
+  const raw = $('[data-att="provider"]').value.trim();
+  let provider;
+  try {
+    provider = getAddress(raw);
+  } catch {
+    return note("attest", "Enter a valid provider address.", "error");
+  }
+  if (clear) return send("attest", (s) => registry.connect(s).clearHardwareAttestation(provider));
+  const ref = toBytes32($('[data-att="ref"]').value);
+  if (ref === ZeroHash) return note("attest", "Enter the attestation reference.", "error");
+  return send("attest", (s) => registry.connect(s).attestHardware(provider, ref));
 }
 
 async function togglePause() {
   if (!state.protocol) return;
-  return send("pause", state.protocol.paused ? "Preview: resume new jobs" : "Preview: pause new jobs");
+  const paused = state.protocol.paused;
+  return send("pause", (s) => (paused ? market.connect(s).unpause() : market.connect(s).pause()));
 }
 
 async function claim() {
-  await send("fund", `Preview: claim ${sol(state.claimable)} ${SOL}`);
+  const el = $("[data-claim-button]");
+  el.disabled = true;
+  await send("fund", (s) => market.connect(s).claim());
+  el.disabled = false;
 }
 
 /* -------------------------------------------------------------- wire ----- */
@@ -1315,6 +1319,16 @@ function wire() {
     e.stopPropagation();
     connect();
   });
+  $("[data-switch-chain]").addEventListener("click", async () => {
+    if (!state.wallet) return;
+    try {
+      await signerFor(state.wallet.provider);
+      state.chainOk = true;
+      paintChain();
+    } catch (error) {
+      console.warn("BRUT: switch failed", error);
+    }
+  });
   $("[data-claim-button]").addEventListener("click", claim);
 
   $$("[data-tab]").forEach((tab) => tab.addEventListener("click", () => showTab(tab.dataset.tab)));
@@ -1337,7 +1351,7 @@ function wire() {
   $("[data-deposit]").addEventListener("click", deposit);
   $("[data-withdraw]").addEventListener("click", withdraw);
   $("[data-withdraw-max]").addEventListener("click", () => {
-    if (state.me) $("[data-withdraw-amount]").value = sol(state.me.freeStake, 9).replace(/,/g, "");
+    if (state.me) $("[data-withdraw-amount]").value = eth(state.me.freeStake, 18).replace(/,/g, "");
   });
 
   $$("[data-jobs-filter]").forEach((chip) =>
@@ -1361,8 +1375,8 @@ function wire() {
     if (url) link.href = url;
     else link.hidden = true;
   };
-  footer("[data-program-link]", config.programId);
-  footer("[data-treasury-link]", config.treasuryAddress);
+  footer("[data-contract-link]", config.marketAddress);
+  footer("[data-registry-link]", config.registryAddress);
 }
 
 function route() {
@@ -1373,11 +1387,12 @@ function route() {
 }
 
 async function reconnect() {
-  const id = store.get("wallet", "");
-  if (!id) return;
-  /* Wallet Standard registrations can arrive after the page; give them a moment. */
+  const uuid = store.get("wallet", "");
+  if (!uuid) return;
+  /* EIP 6963 announcements arrive asynchronously; give them a moment. */
   await new Promise((resolve) => setTimeout(resolve, 150));
-  const w = wallets().find((x) => x.id === id);
+  const list = wallets();
+  const w = list.find((x) => x.info.uuid === uuid) || (uuid === "injected" ? list.find((x) => !x.init) : null);
   if (w) await useWallet(w, false);
 }
 
@@ -1385,12 +1400,12 @@ async function start() {
   wire();
   setMode("direct");
   paintWallet();
-  paintNetwork(config.rpcUrl ? "pending" : "error");
+  paintNetwork(isLive ? "pending" : "error");
   route();
   await reconnect();
   await refresh();
   setInterval(() => {
-    if (document.visibilityState === "visible") refresh();
+    if (document.visibilityState === "visible" && !state.busy) refresh();
   }, POLL_MS);
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") refresh();

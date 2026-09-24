@@ -58,6 +58,6 @@ The following conceptual model captures the information BRUT needs to represent.
 - Onchain source
 - Attestation source
 - Reported source
-- Last updated timestamp or slot context
+- Last updated timestamp or block context
 
-The data model is conceptual. It does not require every field to live directly inside one program account.
+The data model is conceptual. It does not require every field to live directly inside one smart contract.

@@ -8,8 +8,7 @@
 import { config, explorerAddress } from "./config.js";
 
 const DESTINATION = {
-  /* The BRUT program on Solana Explorer, or the token mint once it launches. */
-  explorer: () => explorerAddress(config.programId) || (config.tokenLaunched ? explorerAddress(config.tokenMint) : ""),
+  contract: () => explorerAddress(config.marketAddress) || explorerAddress(config.tokenAddress),
   x: () => config.links.x,
   docs: () => config.links.docs,
 };
